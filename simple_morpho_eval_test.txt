@@ -1,0 +1,26 @@
+# gold	observed
+Number=Sing|Person=3|Tense=Pres	Number=Sing|Tense=Pres|Person=3
+Number=Sing|Person=3|Tense=Past	Number=Plural|Tense=Past|Gender=Masc
+Person=2	Number=Sing|Person=3
+Tense=Pres	Person=3|Tense=Pres
+# expected results:
+# Number  R: 1/2 P: 1/3  F: 0.4
+# Person  R: 1/3 P: 1/3  F: 0.333
+# Tense   R: 3/3 P: 3/3  F: 1.0
+# Gender  R: 0/0 P: 0/1  F: 0.0
+####
+# Micro   R: 5/8 P: 5/10 F: 0.556
+# Macro   F: 1.733/4 = 0.433
+####
+# Number=Sing   R: 1/2 P: 1/2 F: 0.5
+# Number=Plural R: 0/0 P: 0/1 F: 0.0
+# Person=3      R: 1/2 P: 1/3 F: 0.4
+# Person=2      R: 0/1 P: 0/0 F: 0.0
+# Tense=Pres    R: 2/2 P: 2/2 F: 1.0
+# Tense=Past    R: 1/1 P: 1/1 F: 1.0
+# Gender=Masc   R: 0/0 P: 0/1 F: 0.0 
+####
+# Micro   R: 5/8 P: 5/10 F: 0.556
+# Macro   F: 2.9/7 = 0.414
+####
+# Accuracy (exact): 1/4 = 0.25
