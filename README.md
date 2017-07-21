@@ -8,3 +8,6 @@ Detailed documentation coming soon. In the meantime, a brief overview of the rep
 - The main directory contains the code required to perform extrinsic analysis on Universal Dependencies data (vocabulary files are supplied in the [vocabs](vocabs) directory.
 
 The entry point is [model.py](model.py), which can use tagging datasets created using the [make_dataset.py](make_dataset.py) script.
+
+## Dependencies
+The main dependency for this project is DyNet. Get it [here](https://github.com/clab/dynet). Their 2.0 version has just been released, and I hope to upgrade this project and models to that version at some point.
