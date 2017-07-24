@@ -1,5 +1,5 @@
 # Mimick
-Code for Mimicking Word Embeddings using Subword RNNs (EMNLP 2017)
+Code for [Mimicking Word Embeddings using Subword RNNs](https://arxiv.org/abs/1707.06961) (EMNLP 2017)
 
 Detailed documentation coming soon. In the meantime, a brief overview of the repository:
 
