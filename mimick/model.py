@@ -1,3 +1,6 @@
+'''
+Script for training Mimick model to predict OOV word embeddings based on pre-trained embeddings dictionary.
+'''
 from __future__ import division
 from collections import Counter
 
@@ -13,6 +16,8 @@ import datetime
 import codecs
 import dynet as dy
 import numpy as np
+
+__author__ = "Yuval Pinter, 2017"
 
 POLYGLOT_UNK = unicode("<UNK>")
 PADDING_CHAR = "<*>"
@@ -40,6 +45,7 @@ class LSTMMimick:
             self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim))
             self.mlp_out_bias = self.model.add_parameters(word_embedding_dim)
         else:
+            # read from saved file. c2i mapping to be read by calling function (for now)
             model_members = iter(self.model.load(file))
             self.char_lookup = model_members.next()
             self.char_fwd_lstm = model_members.next()
@@ -92,6 +98,8 @@ class LSTMMimick:
         members_to_save.append(self.mlp_out)
         members_to_save.append(self.mlp_out_bias)
         self.model.save(file_name, members_to_save)
+
+        # character mapping saved separately
         cPickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
 
     @property
@@ -187,6 +195,7 @@ if __name__ == "__main__":
     epcs = int(options.num_epochs)
     pretrained_vec_norms = 0.0
     inferred_vec_norms = 0.0
+
     # Shuffle set, divide into cross-folds each epoch
     for epoch in xrange(epcs):
         bar = progressbar.ProgressBar()
@@ -299,6 +308,3 @@ if __name__ == "__main__":
     # save model
     if options.model_out is not None:
         model.save(options.model_out)
-
-    ### demo commented out for pesky encoding issues ###
-    #root_logger.info("\nSome most-similar words from training set for a random selection of test set:\n{}".format("\n".join([k + ":\t" + " ".join([t[0] for t in v]) for k,v in similar_words.iteritems()])))
