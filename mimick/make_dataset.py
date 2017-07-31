@@ -1,3 +1,10 @@
+'''
+Creates dataset for trained-embeddings prediction by character Bi-LSTM.
+Inputs:
+- A pre-trained embedding model that is to be emulated by character model
+- A set of downstream-task vocab words, those of which not present in the
+    pre-trained embeddings will be output by the character model
+'''
 from __future__ import division
 from _collections import defaultdict
 import codecs
@@ -6,13 +13,7 @@ import cPickle
 import collections
 import numpy as np
 
-'''
-Creates dataset for trained-embeddings prediction by character Bi-LSTM.
-Inputs:
-- A pre-trained embedding model that is to be emulated by character model
-- A set of downstream-task vocab words, those of which not present in the
-    pre-trained embeddings will be output by the character model
-'''
+__author__ = "Yuval Pinter, 2017"
 
 POLYGLOT_UNK = unicode("<UNK>")
 W2V_UNK = unicode("UNK")
@@ -45,8 +46,6 @@ parser.add_argument("--vectors", required=True, dest="vectors", help="Pickle fil
 parser.add_argument("--w2v-format", dest="w2v_format", action="store_true", help="Vector file is in textual w2v format")
 parser.add_argument("--vocab", required=True, dest="vocab", help="File containing words for unlabeled test set")
 parser.add_argument("--output", required=True, dest="output", help="Output filename (.pkl)")
-
-#### TODO add frequency counter, or add to vocab ####
 
 options = parser.parse_args()
 
