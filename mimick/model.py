@@ -97,7 +97,8 @@ class LSTMMimick:
         members_to_save.append(self.lstm_to_rep_bias)
         members_to_save.append(self.mlp_out)
         members_to_save.append(self.mlp_out_bias)
-        self.model.save(file_name, members_to_save)
+        #self.model.save(file_name, members_to_save)
+        self.model.save(file_name)
 
         # character mapping saved separately
         cPickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
@@ -171,7 +172,8 @@ if __name__ == "__main__":
             vocab_words[vw.strip()] = np.array([0.0] * emb_dim)
 
     model = LSTMMimick(c2i, options.num_lstm_layers, options.char_dim, options.hidden_dim, emb_dim)
-    trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9, 0.1)
+    #trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9, 0.1)
+    trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9)
     root_logger.info("Training Algorithm: {}".format(type(trainer)))
 
     root_logger.info("Number training instances: {}".format(len(training_instances)))
@@ -236,7 +238,7 @@ if __name__ == "__main__":
         root_logger.info("\n")
         root_logger.info("Epoch {} complete".format(epoch + 1))
         trainer.update_epoch(1)
-        print trainer.status()
+        print(trainer.status())
 
         # Evaluate dev data
         model.disable_dropout()
@@ -291,7 +293,7 @@ if __name__ == "__main__":
         vec = vocab_words[w]
         top_k = [(wordify(instance),d) for instance,d in sorted([(inst, dist(inst, vec)) for inst in training_instances], key=lambda x: x[1])[:top_to_show]]
         if options.debug:
-            print w, [(i,d) for i,d in top_k]
+            print(w, [(i,d) for i,d in top_k])
         similar_words[w] = top_k
 
 
