@@ -5,7 +5,7 @@ from __future__ import division
 from collections import Counter
 from _collections import defaultdict
 from evaluate_morphotags import Evaluator
-from sys import maxint
+from sys import maxsize
 
 import collections
 import argparse
@@ -112,7 +112,10 @@ class LSTMTagger:
     def build_tagging_graph(self, sentence, word_chars):
         dy.renew_cg()
 
-        embeddings = [self.word_rep(w, chars) for w, chars in zip(sentence, word_chars)]
+        if word_chars is not None:
+            embeddings = [self.word_rep(w, chars) for w, chars in zip(sentence, word_chars)]
+        else:
+            embeddings = [self.word_rep(w, word_chars) for w in sentence]
 
         lstm_out = self.word_bi_lstm.transduce(embeddings)
 
@@ -190,7 +193,8 @@ class LSTMTagger:
         members_to_save.extend(utils.sortvals(self.lstm_to_tags_bias))
         members_to_save.extend(utils.sortvals(self.mlp_out))
         members_to_save.extend(utils.sortvals(self.mlp_out_bias))
-        self.model.save(file_name, members_to_save)
+        #self.model.save(file_name, members_to_save)
+        self.model.save(file_name)
 
         with open(file_name + "-atts", 'w') as attdict:
             attdict.write("\t".join(sorted(self.attributes)))
@@ -227,8 +231,8 @@ if __name__ == "__main__":
     parser.add_argument("--num-epochs", default=20, dest="num_epochs", type=int, help="Number of full passes through training set (default - 20)")
     parser.add_argument("--num-lstm-layers", default=2, dest="lstm_layers", type=int, help="Number of LSTM layers (default - 2)")
     parser.add_argument("--hidden-dim", default=128, dest="hidden_dim", type=int, help="Size of LSTM hidden layers (default - 128)")
-    parser.add_argument("--training-sentence-size", default=maxint, dest="training_sentence_size", type=int, help="Instance count of training set (default - unlimited)")
-    parser.add_argument("--token-size", default=maxint, dest="token_size", type=int, help="Token count of training set (default - unlimited)")
+    parser.add_argument("--training-sentence-size", default=maxsize, dest="training_sentence_size", type=int, help="Instance count of training set (default - unlimited)")
+    parser.add_argument("--token-size", default=maxsize, dest="token_size", type=int, help="Token count of training set (default - unlimited)")
     parser.add_argument("--learning-rate", default=0.01, dest="learning_rate", type=float, help="Initial learning rate (default - 0.01)")
     parser.add_argument("--dropout", default=-1, dest="dropout", type=float, help="Amount of dropout to apply to LSTM part of graph (default - off)")
     parser.add_argument("--no-we-update", dest="no_we_update", action="store_true", help="Word Embeddings aren't updated")
@@ -270,7 +274,7 @@ if __name__ == "__main__":
                options.training_sentence_size, options.token_size, options.learning_rate, options.dropout, options.loss_prop))
 
     if options.debug:
-        print "DEBUG MODE"
+        print("DEBUG MODE")
 
     # ===-----------------------------------------------------------------------===
     # Read in dataset
@@ -333,7 +337,8 @@ if __name__ == "__main__":
                        vocab_size=len(w2i),
                        word_embedding_dim=DEFAULT_WORD_EMBEDDING_SIZE)
 
-    trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9, 0.1)
+    #trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9, 0.1)
+    trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9)
     logging.info("Training Algorithm: {}".format(type(trainer)))
 
     logging.info("Number training instances: {}".format(len(training_instances)))
@@ -387,7 +392,7 @@ if __name__ == "__main__":
         logging.info("\n")
         logging.info("Epoch {} complete".format(epoch + 1))
         trainer.update_epoch(1)
-        print trainer.status()
+        print(trainer.status())
 
         train_loss = train_loss / len(train_instances)
 
@@ -483,9 +488,11 @@ if __name__ == "__main__":
                 logging.info("Removing files from previous epoch.")
                 old_model_file_name = "{}/model_epoch-{:02d}.bin".format(options.log_dir, epoch)
                 os.remove(old_model_file_name)
-                os.remove(old_model_file_name + ".pym")
-                os.remove(old_model_file_name + ".pyk")
-                os.remove(old_model_file_name + "-atts")
+                # Seems to be a dynet mismatch error; previous version of model.save would produce these files. 
+                # Potential todo: use updated dynet API to save individual parameters. Currently saving whole model.
+                #os.remove(old_model_file_name + ".pym")
+                #os.remove(old_model_file_name + ".pyk")
+                #os.remove(old_model_file_name + "-atts")
 
         # epoch loop ends
 
