@@ -14,6 +14,7 @@ import cPickle
 import logging
 import progressbar
 import os
+import codecs
 import dynet as dy
 import numpy as np
 
@@ -95,6 +96,19 @@ class LSTMTagger:
             self.lstm_to_tags_bias[att] = self.model.add_parameters(set_size)
             self.mlp_out[att] = self.model.add_parameters((set_size, set_size))
             self.mlp_out_bias[att] = self.model.add_parameters(set_size)
+
+
+    def dump_embeddings(self, filename):
+        with codecs.open(filename, "w", "utf-8") as writer:
+            #writer.write("{} {}\n".format(self.vocab_size, self.word_embedding_dim))
+            writer.write("{} {}\n".format(self.words_lookup.shape()[0], self.words_lookup.shape()[1]))
+            for w,i in w2i.items():
+                wemb = dy.lookup(self.words_lookup, i, update=self.we_update)
+                writer.write(w + " ")
+                for i in wemb.npvalue():
+                    writer.write(str(i) + " ")
+                writer.write("\n")
+
 
     def word_rep(self, word, char_ids):
         '''
@@ -318,6 +332,8 @@ if __name__ == "__main__":
     else:
         word_embeddings = None
 
+
+
     tag_set_sizes = { att: len(t2i) for att, t2i in t2is.items() }
 
     if options.loss_prop:
@@ -336,6 +352,7 @@ if __name__ == "__main__":
                        att_props=att_props,
                        vocab_size=len(w2i),
                        word_embedding_dim=DEFAULT_WORD_EMBEDDING_SIZE)
+
 
     #trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9, 0.1)
     trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9)
@@ -495,6 +512,11 @@ if __name__ == "__main__":
                 #os.remove(old_model_file_name + "-atts")
 
         # epoch loop ends
+
+
+    # dump embeddings after tagger training
+    emb_dump = options.log_dir + "/trained-embeddings.txt"
+    model.dump_embeddings(emb_dump)
 
     # evaluate test data (once)
     logging.info("\n")
