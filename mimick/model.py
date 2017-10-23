@@ -36,11 +36,10 @@ class CNNMimick:
     '''
 
     def __init__(self, c2i, num_conv_layers=1, char_dim=-1, hidden_dim=-1, window_width=3,\
-                pooling_k=[0,1], stride=[1,1], word_embedding_dim=-1, file=None):
+                pooling_maxk=1, stride=[1,1], word_embedding_dim=-1, file=None):
         self.c2i = c2i
-        ### TODO sort out the pooling ks, probably don't need a pooling_k, maybe need a maxk.
-        self.pooling_k = pooling_k
-        #self.pooling_maxk = pooling_maxk
+        ### TODO this parameter appears to be useless - can't vary it to do well after affine
+        self.pooling_maxk = pooling_maxk # leave at 1
         self.stride = stride
         self.model = dy.Model()
         ### TODO allow more layers (create list of length num_conv_layers,\
@@ -79,10 +78,10 @@ class CNNMimick:
         ### TODO I might want to change these to is_valid=False, need to think about logic of padding
         ### TODO is bias really necessary?
         conv_out = dy.conv2d_bias(reshaped_embeddings, conv_param, conv_param_bias, self.stride, is_valid=True)
-        poolingk = [1, len(chars)]
+        poolingk = [1, len(chars) - self.pooling_maxk + 1]
         pooling_out = dy.maxpooling2d(conv_out, poolingk, self.stride, is_valid=True)
         #pooling_out = dy.kmax_pooling(conv_out, self.pooling_maxk, d=2) # d = what dimension to max over
-        pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim,))
+        pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim, self.pooling_maxk))
 
         return O * dy.tanh(H * pooling_out_flat + Hb) + Ob
 
@@ -213,9 +212,9 @@ if __name__ == "__main__":
     parser.add_argument("--num-lstm-layers", default=1, dest="num_lstm_layers", help="Number of LSTM layers (default = 1)")
     ### CNN ###
     parser.add_argument("--use_cnn", dest="cnn", action="store_true", help="if toggled, train CNN and not LSTM")
-    parser.add_argument("--num-conv-layers", default=1, dest="num_conv_layers", help="Number of CNN layers (default = 1)")
-    parser.add_argument("--window-width", default=3, dest="window_width", help="Width of CNN layers (default = 3)")
-    parser.add_argument("--pooling-k", default=[0,1], dest="pooling_k", help="K for K-max pooling (default = [0,1])")
+    parser.add_argument("--num-conv-layers", type=int, default=1, dest="num_conv_layers", help="Number of CNN layers (default = 1)")
+    parser.add_argument("--window-width", type=int, default=3, dest="window_width", help="Width of CNN layers (default = 3)")
+    parser.add_argument("--pooling-maxk", type=int, default=1, dest="pooling_maxk", help="K for K-max pooling (default = 1)")
     parser.add_argument("--stride", default=[1,1], dest="stride", help="Stride for CNN layers (default = [1,1])")
     ### END ###
     parser.add_argument("--all-from-mimick", dest="all_from_mimick", action="store_true", help="if toggled, vectors in original training set are overriden by Mimick-generated vectors")
@@ -223,7 +222,6 @@ if __name__ == "__main__":
     parser.add_argument("--dropout", default=-1, dest="dropout", type=float, help="amount of dropout to apply to LSTM part of graph")
     parser.add_argument("--num-epochs", default=10, dest="num_epochs", type=int, help="Number of full passes through training set (default = 10)")
     parser.add_argument("--learning-rate", default=0.01, dest="learning_rate", type=float, help="Initial learning rate")
-    parser.add_argument("--rate-decay", default=0.1, dest="rate_decay", type=float, help="Learning rate decay (default = 0.1)")
     parser.add_argument("--cosine", dest="cosine", action="store_true", help="Use cosine as diff measure")
     parser.add_argument("--dynet-mem", help="Ignore this outside argument")
     parser.add_argument("--debug", dest="debug", action="store_true", help="Debug mode")
@@ -263,7 +261,7 @@ if __name__ == "__main__":
         model = LSTMMimick(c2i, options.num_lstm_layers, options.char_dim, options.hidden_dim, emb_dim)
     else:
         model = CNNMimick(c2i, options.num_conv_layers, options.char_dim, options.hidden_dim,\
-                options.window_width, options.pooling_k, options.stride, emb_dim)
+                options.window_width, options.pooling_maxk, options.stride, emb_dim)
     trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9)
     root_logger.info("Training Algorithm: {}".format(type(trainer)))
 
