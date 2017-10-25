@@ -26,6 +26,8 @@ PADDING_CHAR = "<*>"
 
 DEFAULT_CHAR_DIM = 20
 DEFAULT_HIDDEN_DIM = 50
+DEFAULT_WORD_DIM = 64
+DEFAULT_WINDOW_WIDTH = 3
 
 Instance = collections.namedtuple("Instance", ["chars", "word_emb"])
 
@@ -37,28 +39,32 @@ class CNNMimick:
     http://dynet.readthedocs.io/en/latest/python_ref.html#convolution-pooling-operations
     '''
 
-    def __init__(self, c2i, num_conv_layers=1, char_dim=-1, hidden_dim=-1, window_width=3,\
-                pooling_maxk=1, stride=[1,1], word_embedding_dim=-1, file=None):
+    def __init__(self, c2i, num_conv_layers=1, char_dim=DEFAULT_CHAR_DIM, hidden_dim=DEFAULT_HIDDEN_DIM,\
+                window_width=DEFAULT_WINDOW_WIDTH, pooling_maxk=1, stride=[1,1],\
+                word_embedding_dim=DEFAULT_WORD_DIM, file=None):
         self.c2i = c2i
-        ### TODO this parameter appears to be useless - can't vary it to do well after affine
+        ### TODO pooling_maxk parameter can work if we change cnn_to_rep_params's input dim
+        ### to hidden_dim * pooling_maxk
         #self.pooling_maxk = pooling_maxk # leave at 1 for now
         self.stride = stride # TODO change so first is fixed and stride is int param
         self.char_dim = char_dim
         self.hidden_dim = hidden_dim
         self.model = dy.Model()
         
-        if file == None:
-            ### TODO allow more layers (create list of length num_conv_layers,\
-            ### don't forget max-pooling after each in predict_emb)
-            self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim), name="ce")
-            self.conv = self.model.add_parameters((1, window_width, char_dim, hidden_dim), name="conv")
-            self.conv_bias = self.model.add_parameters((hidden_dim), name="convb")
-            ### TODO add nonlinearity?
-            self.cnn_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim), name="H")
-            self.cnn_to_rep_bias = self.model.add_parameters(word_embedding_dim, name="Hb")
-            self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim), name="O")
-            self.mlp_out_bias = self.model.add_parameters(word_embedding_dim, name="Ob")
-        else:
+        #if file == None:
+        ### TODO allow more layers (create list of length num_conv_layers,\
+        ### don't forget max-pooling after each in predict_emb)
+        self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim), name="ce")
+        self.conv = self.model.add_parameters((1, window_width, char_dim, hidden_dim), name="conv")
+        self.conv_bias = self.model.add_parameters((hidden_dim), name="convb")
+        
+        ### TODO add nonlinearity?
+        self.cnn_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim), name="H")
+        self.cnn_to_rep_bias = self.model.add_parameters(word_embedding_dim, name="Hb")
+        self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim), name="O")
+        self.mlp_out_bias = self.model.add_parameters(word_embedding_dim, name="Ob")
+        
+        if file is not None:
             ### TODO current problem - version only supports explicit loading into params, so
             ### dimensionalities all need to be specified in init?
             self.model.populate(file)
@@ -135,7 +141,8 @@ class LSTMMimick:
             self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim))
             self.mlp_out_bias = self.model.add_parameters(word_embedding_dim)
         else:
-            # read from saved file. c2i mapping to be read by calling function (for now)
+            ### TODO implement loading from dynet v. 2.0 style save
+            # read from saved file
             model_members = iter(self.model.load(file))
             self.char_lookup = model_members.next()
             self.char_fwd_lstm = model_members.next()
@@ -179,6 +186,13 @@ class LSTMMimick:
         self.char_bwd_lstm.disable_dropout()
 
     def save(self, file_name):
+        ### TODO implement dynet 2.0 version
+        self.model.save(file_name)
+
+        # character mapping saved separately
+        cPickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
+        
+    def old_save(self, file_name):
         members_to_save = []
         members_to_save.append(self.char_lookup)
         members_to_save.append(self.char_fwd_lstm)

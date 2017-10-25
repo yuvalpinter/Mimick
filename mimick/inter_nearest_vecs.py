@@ -7,7 +7,7 @@ import cPickle as pickle
 import numpy as np
 import collections
 import argparse
-from model import LSTMMimick
+from model import LSTMMimick, CNNMimick
 
 __author__ = "Yuval Pinter, 2017"
 
@@ -23,18 +23,23 @@ if __name__ == "__main__":
     # parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--mimick", required=True, dest="mimick", help="Mimick model file")
+    parser.add_argument("--use-cnn", action="store_true", dest="use_cnn", help="Use CNN model")
     parser.add_argument("--c2i", required=True, dest="c2i", help="Mimick char-to-integer mapping file")
     parser.add_argument("--vectors", required=True, dest="vectors", help="Pickle file with reference word vectors")
     parser.add_argument("--w2v-format", dest="w2v_format", action="store_true", help="Vector file is in textual w2v format")
     #parser.add_argument("--ktop", dest="ktop", default=10, help="Number of top neighbors to present (optional)")
     opts = parser.parse_args()
 
-    # load model
-    c2i = pickle.load(open(opts.c2i))
-    mimick = LSTMMimick(c2i, file=opts.mimick)
-
     # load vocab
     voc_words, voc_vecs = pickle.load(open(opts.vectors))
+
+    # load model
+    c2i = pickle.load(open(opts.c2i))
+    if opts.use_cnn:
+        ### TODO add optional params to opts for compliance with file dimensions (see CNNMimick.__init__)
+        mimick = CNNMimick(c2i, file=opts.mimick, word_embedding_dim=len(voc_vecs[0]))
+    else:
+        mimick = LSTMMimick(c2i, file=opts.mimick)
 
     # prompt
     while True:
