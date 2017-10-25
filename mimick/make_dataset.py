@@ -14,6 +14,8 @@ import cPickle
 import collections
 import numpy as np
 
+from util import charseq
+
 __author__ = "Yuval Pinter, 2017"
 
 POLYGLOT_UNK = unicode("<UNK>")
@@ -32,14 +34,6 @@ def read_text_embs(filename):
                 words.append(split[0])
                 embs.append(np.array([float(s) for s in split[1:]]))
     return words, embs
-
-def charseq(word, c2i):
-    chars = []
-    for c in word:
-        if c not in c2i:
-            c2i[c] = len(c2i)
-        chars.append(c2i[c])
-    return chars
 
 # parse arguments
 parser = argparse.ArgumentParser()
@@ -75,6 +69,8 @@ for word, emb in zip(words, embs):
         in_vocab += 1
     training_instances.append(Instance(charseq(word, c2i), emb))
 training_char_count = len(c2i)
+print "Total in Embeddings vocabulary:", len(words)
+print "Training set character count: ", training_char_count
 
 # Test
 if len(vocab) > 0:
@@ -86,9 +82,6 @@ if len(vocab) > 0:
     print "Total Number of output words:", total
     print "Total in Training Vocabulary:", in_vocab
     print "Percentage in-vocab:", in_vocab / total
-    
-    print "Total in Embeddings vocabulary:", len(words)
-    print "Training set character count: ", training_char_count
     print "Total character count: ", len(c2i)
 
 c2i[PADDING_CHAR] = len(c2i)

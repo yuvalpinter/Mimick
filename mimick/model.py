@@ -17,6 +17,8 @@ import codecs
 import dynet as dy
 import numpy as np
 
+from util import wordify, charseq
+
 __author__ = "Yuval Pinter, 2017"
 
 POLYGLOT_UNK = unicode("<UNK>")
@@ -39,27 +41,32 @@ class CNNMimick:
                 pooling_maxk=1, stride=[1,1], word_embedding_dim=-1, file=None):
         self.c2i = c2i
         ### TODO this parameter appears to be useless - can't vary it to do well after affine
-        self.pooling_maxk = pooling_maxk # leave at 1
-        self.stride = stride
-        self.model = dy.Model()
-        ### TODO allow more layers (create list of length num_conv_layers,\
-        ### don't forget max-pooling after each in predict_emb)
+        #self.pooling_maxk = pooling_maxk # leave at 1 for now
+        self.stride = stride # TODO change so first is fixed and stride is int param
         self.char_dim = char_dim
         self.hidden_dim = hidden_dim
-        self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim))
-        self.conv = self.model.add_parameters((1, window_width, char_dim, hidden_dim))
-        self.conv_bias = self.model.add_parameters((hidden_dim))
-        ### TODO add nonlinearity?
-        self.cnn_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim))
-        self.cnn_to_rep_bias = self.model.add_parameters(word_embedding_dim)
-        self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim))
-        self.mlp_out_bias = self.model.add_parameters(word_embedding_dim)
-        ### TODO read from file option
+        self.model = dy.Model()
+        
+        if file == None:
+            ### TODO allow more layers (create list of length num_conv_layers,\
+            ### don't forget max-pooling after each in predict_emb)
+            self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim), name="ce")
+            self.conv = self.model.add_parameters((1, window_width, char_dim, hidden_dim), name="conv")
+            self.conv_bias = self.model.add_parameters((hidden_dim), name="convb")
+            ### TODO add nonlinearity?
+            self.cnn_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim), name="H")
+            self.cnn_to_rep_bias = self.model.add_parameters(word_embedding_dim, name="Hb")
+            self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim), name="O")
+            self.mlp_out_bias = self.model.add_parameters(word_embedding_dim, name="Ob")
+        else:
+            ### TODO current problem - version only supports explicit loading into params, so
+            ### dimensionalities all need to be specified in init?
+            self.model.populate(file)
  
     def predict_emb(self, chars):
         dy.renew_cg()
 
-        ### TODO find out if this row needs replacement for init
+        ### TODO find out if this row needs replacement for init (probably not)
         # finit = self.char_fwd_lstm.initial_state()
 
         H = dy.parameter(self.cnn_to_rep_params)
@@ -78,10 +85,13 @@ class CNNMimick:
         ### TODO I might want to change these to is_valid=False, need to think about logic of padding
         ### TODO is bias really necessary?
         conv_out = dy.conv2d_bias(reshaped_embeddings, conv_param, conv_param_bias, self.stride, is_valid=True)
-        poolingk = [1, len(chars) - self.pooling_maxk + 1]
+        #poolingk = [1, len(chars) - self.pooling_maxk + 1]
+        poolingk = [1, len(chars)]
         pooling_out = dy.maxpooling2d(conv_out, poolingk, self.stride, is_valid=True)
         #pooling_out = dy.kmax_pooling(conv_out, self.pooling_maxk, d=2) # d = what dimension to max over
-        pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim, self.pooling_maxk))
+        
+        #pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim, self.pooling_maxk))
+        pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim,))
 
         return O * dy.tanh(H * pooling_out_flat + Hb) + Ob
 
@@ -97,8 +107,9 @@ class CNNMimick:
         pass
 
     def save(self, file_name):
-        # TODO implement
-        pass
+        self.model.save(file_name)
+        # character mapping saved separately
+        cPickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
 
     @property
     def model(self):
@@ -185,10 +196,6 @@ class LSTMMimick:
     def model(self):
         return self.model
 
-
-def wordify(instance):
-    return ''.join([i2c[i] for i in instance.chars])
-
 def dist(instance, vec):
     we = instance.word_emb
     if options.cosine:
@@ -249,13 +256,23 @@ if __name__ == "__main__":
     i2c = { i: c for c, i in c2i.items() } # inverse map
     training_instances = dataset["training_instances"]
     test_instances = dataset["test_instances"]
+    populate_test_insts_from_vocab = len(test_instances) == 0
     emb_dim = len(training_instances[0].word_emb)
 
     # Load words to write
     vocab_words = {}
+    if populate_test_insts_from_vocab:
+        train_words = [wordify(w, i2c) for w in training_instances]
     with codecs.open(options.vocab, "r", "utf-8") as vocab_file:
         for vw in vocab_file.readlines():
-            vocab_words[vw.strip()] = np.array([0.0] * emb_dim)
+            vw = vw.strip()
+            vocab_words[vw] = np.zeros(emb_dim)
+            if populate_test_insts_from_vocab and vw not in train_words:
+                test_instances.append(Instance(charseq(vw, c2i), np.zeros(emb_dim)))
+    
+    if populate_test_insts_from_vocab:
+        # might need to update i2c
+        i2c = { i: c for c, i in c2i.items() }
 
     if not options.cnn:
         model = LSTMMimick(c2i, options.num_lstm_layers, options.char_dim, options.hidden_dim, emb_dim)
@@ -315,7 +332,7 @@ if __name__ == "__main__":
             trainer.update()
 
             if epoch == epcs - 1:
-                word = wordify(instance)
+                word = wordify(instance, i2c)
                 if word in vocab_words:
                     pretrained_vec_norms += np.linalg.norm(instance.word_emb)
                     if options.all_from_mimick:
@@ -342,7 +359,7 @@ if __name__ == "__main__":
             dev_loss += model.loss(obs_emb, instance.word_emb).scalar_value()
 
             if epoch == epcs - 1:
-                word = wordify(instance)
+                word = wordify(instance, i2c)
                 if word in vocab_words:
                     pretrained_vec_norms += np.linalg.norm(instance.word_emb)
                     if options.all_from_mimick:
@@ -362,7 +379,7 @@ if __name__ == "__main__":
     top_to_show = 10
     showcase = [] # sample for similarity sanity check
     for idx, instance in enumerate(test_instances):
-        word = wordify(instance)
+        word = wordify(instance, i2c)
         obs_emb = model.predict_emb(instance.chars)
         vocab_words[word] = np.array(obs_emb.value())
         inferred_vec_norms += np.linalg.norm(vocab_words[word])
@@ -380,7 +397,7 @@ if __name__ == "__main__":
     similar_words = {}
     for w in showcase:
         vec = vocab_words[w]
-        top_k = [(wordify(instance),d) for instance,d in sorted([(inst, dist(inst, vec)) for inst in training_instances], key=lambda x: x[1])[:top_to_show]]
+        top_k = [(wordify(instance, i2c),d) for instance,d in sorted([(inst, dist(inst, vec)) for inst in training_instances], key=lambda x: x[1])[:top_to_show]]
         if options.debug:
             print w, [(i,d) for i,d in top_k]
         similar_words[w] = top_k
