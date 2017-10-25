@@ -235,7 +235,7 @@ if __name__ == "__main__":
     options = parser.parse_args()
 
     # Set up logging
-    log_dir = "embedding_train_charlstm-{}-{}".format(datetime.datetime.now().strftime('%y%m%d%H%M%S'), options.lang)
+    log_dir = "embedding_train_mimick-{}-{}".format(datetime.datetime.now().strftime('%y%m%d%H%M%S'), options.lang)
     os.mkdir(log_dir)
 
     root_logger = logging.getLogger()
