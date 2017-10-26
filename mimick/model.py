@@ -28,6 +28,7 @@ DEFAULT_CHAR_DIM = 20
 DEFAULT_HIDDEN_DIM = 50
 DEFAULT_WORD_DIM = 64
 DEFAULT_WINDOW_WIDTH = 3
+DEFAULT_POOLING_MAXK = 1
 
 Instance = collections.namedtuple("Instance", ["chars", "word_emb"])
 
@@ -40,12 +41,12 @@ class CNNMimick:
     '''
 
     def __init__(self, c2i, num_conv_layers=1, char_dim=DEFAULT_CHAR_DIM, hidden_dim=DEFAULT_HIDDEN_DIM,\
-                window_width=DEFAULT_WINDOW_WIDTH, pooling_maxk=1, stride=[1,1],\
+                window_width=DEFAULT_WINDOW_WIDTH, pooling_maxk=DEFAULT_POOLING_MAXK, stride=[1,1],\
                 word_embedding_dim=DEFAULT_WORD_DIM, file=None):
         self.c2i = c2i
         ### TODO pooling_maxk parameter can work if we change cnn_to_rep_params's input dim
         ### to hidden_dim * pooling_maxk
-        #self.pooling_maxk = pooling_maxk # leave at 1 for now
+        self.pooling_maxk = pooling_maxk # leave at 1 for now
         self.stride = stride # TODO change so first is fixed and stride is int param
         self.char_dim = char_dim
         self.hidden_dim = hidden_dim
@@ -59,7 +60,7 @@ class CNNMimick:
         self.conv_bias = self.model.add_parameters((hidden_dim), name="convb")
         
         ### TODO add nonlinearity?
-        self.cnn_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim), name="H")
+        self.cnn_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim * pooling_maxk), name="H")
         self.cnn_to_rep_bias = self.model.add_parameters(word_embedding_dim, name="Hb")
         self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim), name="O")
         self.mlp_out_bias = self.model.add_parameters(word_embedding_dim, name="Ob")
@@ -85,19 +86,23 @@ class CNNMimick:
 
         pad_char = self.c2i[PADDING_CHAR]
         char_ids = [pad_char] + chars + [pad_char]
+        if len(char_ids) < 2 + self.pooling_maxk:
+            # allow k-max pooling layer output to transform to affine
+            char_ids.extend([pad_char] * (self.pooling_maxk - len(char_ids) + 2))
+        
         embeddings = dy.concatenate_cols([self.char_lookup[cid] for cid in char_ids])
         reshaped_embeddings = dy.reshape(dy.transpose(embeddings), (1, len(char_ids), self.char_dim))
         
         ### TODO I might want to change these to is_valid=False, need to think about logic of padding
         ### TODO is bias really necessary?
         conv_out = dy.conv2d_bias(reshaped_embeddings, conv_param, conv_param_bias, self.stride, is_valid=True)
-        #poolingk = [1, len(chars) - self.pooling_maxk + 1]
         poolingk = [1, len(chars)]
-        pooling_out = dy.maxpooling2d(conv_out, poolingk, self.stride, is_valid=True)
-        #pooling_out = dy.kmax_pooling(conv_out, self.pooling_maxk, d=2) # d = what dimension to max over
+        #pooling_out = dy.maxpooling2d(conv_out, poolingk, self.stride, is_valid=True)
+        pooling_out = dy.kmax_pooling(conv_out, self.pooling_maxk, d=1) # d = what dimension to max over
         
+        #pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim,))
         #pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim, self.pooling_maxk))
-        pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim,))
+        pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim * self.pooling_maxk,))
 
         return O * dy.tanh(H * pooling_out_flat + Hb) + Ob
 
@@ -398,23 +403,24 @@ if __name__ == "__main__":
         vocab_words[word] = np.array(obs_emb.value())
         inferred_vec_norms += np.linalg.norm(vocab_words[word])
 
-        # reservoir sampling
-        if idx < showcase_size:
-            showcase.append(word)
-        else:
-            rand = random.randint(0,idx-1)
-            if rand < showcase_size:
-                showcase[rand] = word
+        if options.debug:
+            # reservoir sampling
+            if idx < showcase_size:
+                showcase.append(word)
+            else:
+                rand = random.randint(0,idx-1)
+                if rand < showcase_size:
+                    showcase[rand] = word
 
     root_logger.info("Average norm for trained: {}".format(inferred_vec_norms / len(test_instances)))
 
-    similar_words = {}
-    for w in showcase:
-        vec = vocab_words[w]
-        top_k = [(wordify(instance, i2c),d) for instance,d in sorted([(inst, dist(inst, vec)) for inst in training_instances], key=lambda x: x[1])[:top_to_show]]
-        if options.debug:
+    if options.debug:
+        similar_words = {}
+        for w in showcase:
+            vec = vocab_words[w]
+            top_k = [(wordify(instance, i2c),d) for instance,d in sorted([(inst, dist(inst, vec)) for inst in training_instances], key=lambda x: x[1])[:top_to_show]]
             print w, [(i,d) for i,d in top_k]
-        similar_words[w] = top_k
+            similar_words[w] = top_k
 
 
     # write all
