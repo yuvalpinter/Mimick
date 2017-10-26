@@ -44,9 +44,7 @@ class CNNMimick:
                 window_width=DEFAULT_WINDOW_WIDTH, pooling_maxk=DEFAULT_POOLING_MAXK, stride=[1,1],\
                 word_embedding_dim=DEFAULT_WORD_DIM, file=None):
         self.c2i = c2i
-        ### TODO pooling_maxk parameter can work if we change cnn_to_rep_params's input dim
-        ### to hidden_dim * pooling_maxk
-        self.pooling_maxk = pooling_maxk # leave at 1 for now
+        self.pooling_maxk = pooling_maxk
         self.stride = stride # TODO change so first is fixed and stride is int param
         self.char_dim = char_dim
         self.hidden_dim = hidden_dim
@@ -59,7 +57,6 @@ class CNNMimick:
         self.conv = self.model.add_parameters((1, window_width, char_dim, hidden_dim), name="conv")
         self.conv_bias = self.model.add_parameters((hidden_dim), name="convb")
         
-        ### TODO add nonlinearity?
         self.cnn_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim * pooling_maxk), name="H")
         self.cnn_to_rep_bias = self.model.add_parameters(word_embedding_dim, name="Hb")
         self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim), name="O")
@@ -96,12 +93,15 @@ class CNNMimick:
         ### TODO I might want to change these to is_valid=False, need to think about logic of padding
         ### TODO is bias really necessary?
         conv_out = dy.conv2d_bias(reshaped_embeddings, conv_param, conv_param_bias, self.stride, is_valid=True)
-        poolingk = [1, len(chars)]
-        #pooling_out = dy.maxpooling2d(conv_out, poolingk, self.stride, is_valid=True)
-        pooling_out = dy.kmax_pooling(conv_out, self.pooling_maxk, d=1) # d = what dimension to max over
         
+        relu_out = dy.rectify(conv_out)
+        
+        ### pooling when max_k can only be 1
+        #poolingk = [1, len(chars)]
+        #pooling_out = dy.maxpooling2d(relu_out, poolingk, self.stride, is_valid=True)
         #pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim,))
-        #pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim, self.pooling_maxk))
+        
+        pooling_out = dy.kmax_pooling(relu_out, self.pooling_maxk, d=1) # d = what dimension to max over
         pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim * self.pooling_maxk,))
 
         return O * dy.tanh(H * pooling_out_flat + Hb) + Ob
