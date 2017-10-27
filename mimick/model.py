@@ -48,6 +48,7 @@ class CNNMimick:
         self.stride = stride # TODO change so first is fixed and stride is int param
         self.char_dim = char_dim
         self.hidden_dim = hidden_dim
+        self.window_width = window_width
         self.model = dy.Model()
         
         #if file == None:
@@ -82,21 +83,22 @@ class CNNMimick:
         conv_param_bias = dy.parameter(self.conv_bias)
 
         pad_char = self.c2i[PADDING_CHAR]
-        char_ids = [pad_char] + chars + [pad_char]
-        if len(char_ids) < 2 + self.pooling_maxk:
+        padding_size = self.window_width // 2 # TODO also consider w-stride?
+        char_ids = ([pad_char] * padding_size) + chars + ([pad_char] * padding_size)
+        if len(chars) < self.pooling_maxk:
             # allow k-max pooling layer output to transform to affine
-            char_ids.extend([pad_char] * (self.pooling_maxk - len(char_ids) + 2))
+            char_ids.extend([pad_char] * (self.pooling_maxk - len(chars)))
         
         embeddings = dy.concatenate_cols([self.char_lookup[cid] for cid in char_ids])
         reshaped_embeddings = dy.reshape(dy.transpose(embeddings), (1, len(char_ids), self.char_dim))
         
         ### TODO I might want to change these to is_valid=False, need to think about logic of padding
-        ### TODO is bias really necessary?
+        ### TODO try with no bias
         conv_out = dy.conv2d_bias(reshaped_embeddings, conv_param, conv_param_bias, self.stride, is_valid=True)
         
         relu_out = dy.rectify(conv_out)
         
-        ### pooling when max_k can only be 1
+        ### pooling when max_k can only be 1, not sure what other differences may be
         #poolingk = [1, len(chars)]
         #pooling_out = dy.maxpooling2d(relu_out, poolingk, self.stride, is_valid=True)
         #pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim,))
