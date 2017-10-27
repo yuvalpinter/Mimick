@@ -29,6 +29,7 @@ DEFAULT_HIDDEN_DIM = 50
 DEFAULT_WORD_DIM = 64
 DEFAULT_WINDOW_WIDTH = 3
 DEFAULT_POOLING_MAXK = 1
+DEFAULT_LSTM_LAYERS = 1
 
 Instance = collections.namedtuple("Instance", ["chars", "word_emb"])
 
@@ -51,7 +52,6 @@ class CNNMimick:
         self.window_width = window_width
         self.model = dy.Model()
         
-        #if file == None:
         ### TODO allow more layers (create list of length num_conv_layers,\
         ### don't forget max-pooling after each in predict_emb)
         self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim), name="ce")
@@ -64,8 +64,8 @@ class CNNMimick:
         self.mlp_out_bias = self.model.add_parameters(word_embedding_dim, name="Ob")
         
         if file is not None:
-            ### TODO current problem - version only supports explicit loading into params, so
-            ### dimensionalities all need to be specified in init?
+            ### TODO problem - version only supports explicit loading into params, so
+            ### dimensionalities all need to be specified in init
             self.model.populate(file)
  
     def predict_emb(self, chars):
@@ -132,32 +132,26 @@ class CNNMimick:
 
 class LSTMMimick:
 
-    def __init__(self, c2i, num_lstm_layers=-1,\
-                char_dim=-1, hidden_dim=-1, word_embedding_dim=-1, file=None):
+    def __init__(self, c2i, num_lstm_layers=DEFAULT_LSTM_LAYERS,\
+                char_dim=DEFAULT_CHAR_DIM, hidden_dim=DEFAULT_HIDDEN_DIM,\
+                word_embedding_dim=DEFAULT_WORD_DIM, file=None):
         self.c2i = c2i
         self.model = dy.Model()
-        if file == None:
-            # Char LSTM Parameters
-            self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim))
-            self.char_fwd_lstm = dy.LSTMBuilder(num_lstm_layers, char_dim, hidden_dim, self.model)
-            self.char_bwd_lstm = dy.LSTMBuilder(num_lstm_layers, char_dim, hidden_dim, self.model)
+        
+        # Char LSTM Parameters
+        self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim), name="ce")
+        self.char_fwd_lstm = dy.LSTMBuilder(num_lstm_layers, char_dim, hidden_dim, self.model)
+        self.char_bwd_lstm = dy.LSTMBuilder(num_lstm_layers, char_dim, hidden_dim, self.model)
 
-            # Post-LSTM Parameters
-            self.lstm_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim * 2))
-            self.lstm_to_rep_bias = self.model.add_parameters(word_embedding_dim)
-            self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim))
-            self.mlp_out_bias = self.model.add_parameters(word_embedding_dim)
-        else:
-            ### TODO implement loading from dynet v. 2.0 style save
-            # read from saved file
-            model_members = iter(self.model.load(file))
-            self.char_lookup = model_members.next()
-            self.char_fwd_lstm = model_members.next()
-            self.char_bwd_lstm = model_members.next()
-            self.lstm_to_rep_params = model_members.next()
-            self.lstm_to_rep_bias = model_members.next()
-            self.mlp_out = model_members.next()
-            self.mlp_out_bias = model_members.next()
+        # Post-LSTM Parameters
+        self.lstm_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim * 2), name="H")
+        self.lstm_to_rep_bias = self.model.add_parameters(word_embedding_dim, name="Hb")
+        self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim), name="O")
+        self.mlp_out_bias = self.model.add_parameters(word_embedding_dim, name="Ob")
+        
+        if file is not None:
+            # read from saved file; see old_load() for dynet 1.0 format
+            self.model.populate(file)
 
     def predict_emb(self, chars):
         dy.renew_cg()
@@ -212,6 +206,17 @@ class LSTMMimick:
 
         # character mapping saved separately
         cPickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
+            
+    def old_load():
+        # for this to load in __init__() there's no param init necessary
+        model_members = iter(self.model.load(file))
+        self.char_lookup = model_members.next()
+        self.char_fwd_lstm = model_members.next()
+        self.char_bwd_lstm = model_members.next()
+        self.lstm_to_rep_params = model_members.next()
+        self.lstm_to_rep_bias = model_members.next()
+        self.mlp_out = model_members.next()
+        self.mlp_out_bias = model_members.next()
 
     @property
     def model(self):
@@ -234,10 +239,10 @@ if __name__ == "__main__":
     parser.add_argument("--output", dest="output", help="file with all embeddings")
     parser.add_argument("--model-out", dest="model_out", help="file with model parameters")
     parser.add_argument("--lang", dest="lang", default="en", help="language")
-    parser.add_argument("--char-dim", default=DEFAULT_CHAR_DIM, dest="char_dim", help="dimension for character embeddings (default = 20)")
-    parser.add_argument("--hidden-dim", default=DEFAULT_HIDDEN_DIM, dest="hidden_dim", help="dimension for LSTM layers (default = 50)")
+    parser.add_argument("--char-dim", default=DEFAULT_CHAR_DIM, dest="char_dim", help="dimension for character embeddings (default = {})".format(DEFAULT_CHAR_DIM))
+    parser.add_argument("--hidden-dim", default=DEFAULT_HIDDEN_DIM, dest="hidden_dim", help="dimension for LSTM layers (default = {})".format(DEFAULT_HIDDEN_DIM))
     ### LSTM ###
-    parser.add_argument("--num-lstm-layers", default=1, dest="num_lstm_layers", help="Number of LSTM layers (default = 1)")
+    parser.add_argument("--num-lstm-layers", default=DEFAULT_LSTM_LAYERS, dest="num_lstm_layers", help="Number of LSTM layers (default = {})".format(DEFAULT_LSTM_LAYERS))
     ### CNN ###
     parser.add_argument("--use_cnn", dest="cnn", action="store_true", help="if toggled, train CNN and not LSTM")
     parser.add_argument("--num-conv-layers", type=int, default=1, dest="num_conv_layers", help="Number of CNN layers (default = 1)")
