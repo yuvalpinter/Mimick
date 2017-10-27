@@ -39,6 +39,7 @@ class CNNMimick:
     '''
     Implementation details inferred from
     http://dynet.readthedocs.io/en/latest/python_ref.html#convolution-pooling-operations
+    Another dynet CNN impl example: https://goo.gl/UFkSwf
     '''
 
     def __init__(self, c2i, num_conv_layers=1, char_dim=DEFAULT_CHAR_DIM, hidden_dim=DEFAULT_HIDDEN_DIM,\
@@ -52,8 +53,8 @@ class CNNMimick:
         self.window_width = window_width
         self.model = dy.Model()
         
-        ### TODO allow more layers (create list of length num_conv_layers,\
-        ### don't forget max-pooling after each in predict_emb)
+        ### TODO allow more layers (create list of length num_conv_layers,
+        ### don't forget relu and max-pooling after each in predict_emb)
         self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim), name="ce")
         self.conv = self.model.add_parameters((1, window_width, char_dim, hidden_dim), name="conv")
         self.conv_bias = self.model.add_parameters((hidden_dim), name="convb")
@@ -71,17 +72,15 @@ class CNNMimick:
     def predict_emb(self, chars):
         dy.renew_cg()
 
-        ### TODO find out if this row needs replacement for init (probably not)
-        # finit = self.char_fwd_lstm.initial_state()
+        conv_param = dy.parameter(self.conv)
+        conv_param_bias = dy.parameter(self.conv_bias)
 
         H = dy.parameter(self.cnn_to_rep_params)
         Hb = dy.parameter(self.cnn_to_rep_bias)
         O = dy.parameter(self.mlp_out)
         Ob = dy.parameter(self.mlp_out_bias)
         
-        conv_param = dy.parameter(self.conv)
-        conv_param_bias = dy.parameter(self.conv_bias)
-
+        # padding
         pad_char = self.c2i[PADDING_CHAR]
         padding_size = self.window_width // 2 # TODO also consider w-stride?
         char_ids = ([pad_char] * padding_size) + chars + ([pad_char] * padding_size)
@@ -92,8 +91,8 @@ class CNNMimick:
         embeddings = dy.concatenate_cols([self.char_lookup[cid] for cid in char_ids])
         reshaped_embeddings = dy.reshape(dy.transpose(embeddings), (1, len(char_ids), self.char_dim))
         
-        ### TODO I might want to change these to is_valid=False, need to think about logic of padding
         ### TODO try with no bias
+        # not using is_valid=False due to maxk-pooling-induced extra padding
         conv_out = dy.conv2d_bias(reshaped_embeddings, conv_param, conv_param_bias, self.stride, is_valid=True)
         
         relu_out = dy.rectify(conv_out)
@@ -102,6 +101,8 @@ class CNNMimick:
         #poolingk = [1, len(chars)]
         #pooling_out = dy.maxpooling2d(relu_out, poolingk, self.stride, is_valid=True)
         #pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim,))
+        
+        ### another possible way for pooling is just max_dim(relu_out, d=1)
         
         pooling_out = dy.kmax_pooling(relu_out, self.pooling_maxk, d=1) # d = what dimension to max over
         pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim * self.pooling_maxk,))
@@ -112,11 +113,11 @@ class CNNMimick:
         return dy.squared_distance(observation, dy.inputVector(target_rep))
 
     def set_dropout(self, p):
-        # TODO see if supported/needed
+        ### TODO see if supported/needed
         pass
 
     def disable_dropout(self):
-        # TODO see if supported/needed
+        ### TODO see if supported/needed
         pass
 
     def save(self, file_name):
@@ -244,7 +245,7 @@ if __name__ == "__main__":
     ### LSTM ###
     parser.add_argument("--num-lstm-layers", default=DEFAULT_LSTM_LAYERS, dest="num_lstm_layers", help="Number of LSTM layers (default = {})".format(DEFAULT_LSTM_LAYERS))
     ### CNN ###
-    parser.add_argument("--use_cnn", dest="cnn", action="store_true", help="if toggled, train CNN and not LSTM")
+    parser.add_argument("--use-cnn", dest="cnn", action="store_true", help="if toggled, train CNN and not LSTM")
     parser.add_argument("--num-conv-layers", type=int, default=1, dest="num_conv_layers", help="Number of CNN layers (default = 1)")
     parser.add_argument("--window-width", type=int, default=3, dest="window_width", help="Width of CNN layers (default = 3)")
     parser.add_argument("--pooling-maxk", type=int, default=1, dest="pooling_maxk", help="K for K-max pooling (default = 1)")
