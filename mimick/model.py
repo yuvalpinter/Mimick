@@ -256,7 +256,8 @@ if __name__ == "__main__":
     options = parser.parse_args()
 
     # Set up logging
-    log_dir = "embedding_train_mimick-{}-{}".format(datetime.datetime.now().strftime('%y%m%d%H%M%S'), options.lang)
+    log_dir = "embedding_train_mimick-{}-{}{}".format(datetime.datetime.now().strftime('%y%m%d%H%M%S'),\
+                                                      options.lang, '-DEBUG' if options.debug else '')
     os.mkdir(log_dir)
 
     root_logger = logging.getLogger()
@@ -396,7 +397,7 @@ if __name__ == "__main__":
     root_logger.info("Average norm for pre-trained in vocab: {}".format(pretrained_vec_norms / len(vocab_words)))
 
     # Infer for test set
-    showcase_size = 25
+    showcase_size = 5
     top_to_show = 10
     showcase = [] # sample for similarity sanity check
     for idx, instance in enumerate(test_instances):
@@ -432,7 +433,7 @@ if __name__ == "__main__":
             for vw, emb in vocab_words.iteritems():
                 writer.write(vw + " ")
                 for i in emb:
-                    writer.write(str(i) + " ")
+                    writer.write("{:.6f} ".format(i))
                 writer.write("\n")
 
     # save model
