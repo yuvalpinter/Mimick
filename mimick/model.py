@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # ===-----------------------------------------------------------------------===
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", required=True, dest="dataset", help=".pkl file to use")
-    parser.add_argument("--vocab", required=True, dest="vocab", help="total vocab to output")
+    parser.add_argument("--vocab", required=True, nargs="*", dest="vocab", help="total vocab to output (can be multiple vocab files)")
     parser.add_argument("--output", dest="output", help="file with all embeddings")
     parser.add_argument("--model-out", dest="model_out", help="file with model parameters")
     parser.add_argument("--lang", dest="lang", default="en", help="language")
@@ -167,9 +167,10 @@ if __name__ == "__main__":
 
     # Load words to write
     vocab_words = {}
-    with codecs.open(options.vocab, "r", "utf-8") as vocab_file:
-        for vw in vocab_file.readlines():
-            vocab_words[vw.strip()] = np.array([0.0] * emb_dim)
+    for file in options.vocab:
+        with codecs.open(file, "r", "utf-8") as vocab_file:
+            for vw in vocab_file.readlines():
+                vocab_words[vw.strip()] = np.array([0.0] * emb_dim)
 
     model = LSTMMimick(c2i, options.num_lstm_layers, options.char_dim, options.hidden_dim, emb_dim)
     #trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9, 0.1)
@@ -286,7 +287,7 @@ if __name__ == "__main__":
             if rand < showcase_size:
                 showcase[rand] = word
 
-    root_logger.info("Average norm for trained: {}".format(inferred_vec_norms / len(test_instances)))
+    if (len(test_instances) > 0): root_logger.info("Average norm for trained: {}".format(inferred_vec_norms / len(test_instances)))
 
     similar_words = {}
     for w in showcase:
