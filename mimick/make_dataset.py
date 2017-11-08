@@ -78,8 +78,8 @@ with codecs.open(options.output, "w", "utf-8") as outfile:
         if v not in words:
             test_instances.append(Instance(charseq(v, c2i), np.array([0.0] * dim)))
     print "Total Number of output words:", total
-    print "Total in Training Vocabulary:", in_vocab
-    print "Percentage in-vocab:", in_vocab / total
+    print "Total training words in output vocabulary:", in_vocab
+    print "Percentage in-vocab:", in_vocab / total * 100
     print "Total in Embeddings vocabulary:", len(words)
     print "Training set character count: ", training_char_count
     print "Total haracter count: ", len(c2i)
