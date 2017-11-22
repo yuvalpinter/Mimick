@@ -317,8 +317,7 @@ if __name__ == "__main__":
         model = CNNMimick(c2i, options.num_conv_layers, options.char_dim, options.hidden_dim,\
                 options.window_width, options.pooling_maxk, options.w_stride, emb_dim)
     
-    #trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9)
-    trainer = dy.AdamTrainer(model.model, 0.001, 0.9, 0.999)
+    trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9)
     root_logger.info("Training Algorithm: {}".format(type(trainer)))
 
     root_logger.info("Number training instances: {}".format(len(training_instances)))
