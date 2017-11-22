@@ -188,7 +188,6 @@ class LSTMMimick:
         self.char_bwd_lstm.disable_dropout()
 
     def save(self, file_name):
-        ### TODO implement dynet 2.0 version
         self.model.save(file_name)
 
         # character mapping saved separately
@@ -277,7 +276,20 @@ if __name__ == "__main__":
     root_logger.info("Output vocabulary: {}".format(options.vocab))
     root_logger.info("Vectors output location: {}".format(options.output))
     root_logger.info("Model output location: {}\n".format(options.model_out))
-
+    if options.all_from_mimick:
+        root_logger.info("All output vectors to be written from Mimick inference.")
+    
+    root_logger.info("Model Architecture: {}\n".format('CNN' if options.cnn else 'LSTM'))
+    if options.cnn:
+        root_logger.info("Layers: {}\n".format(options.num_conv_layers))
+        root_logger.info("Window width: {}\n".format(options.window_width))
+        root_logger.info("Pooling Max-K: {}\n".format(options.pooling_maxk))
+        root_logger.info("Stride: {}\n".format(options.stride))
+    else:
+        root_logger.info("Layers: {}\n".format(options.num_lstm_layers))
+    root_logger.info("Character embedding dimension: {}\n".format(options.char_dim))
+    root_logger.info("Hidden dimension: {}\n".format(options.hidden_dim))
+    
     # Load training set
     dataset = cPickle.load(open(options.dataset, "r"))
     c2i = dataset["c2i"]
