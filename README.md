@@ -1,5 +1,5 @@
 # Mimick
-Code for [Mimicking Word Embeddings using Subword RNNs](https://arxiv.org/abs/1707.06961) (EMNLP 2017) and subsequent experiments.
+Code for [Mimicking Word Embeddings using Subword RNNs](http://www.aclweb.org/anthology/D17-1010) (EMNLP 2017) and subsequent experiments.
 
 I'm adding details to this documentation as I go. When I'm through, this comment will be gone.
 
@@ -24,3 +24,17 @@ The root directory of this repository contains the code required to perform extr
 
 The entry point is [model.py](model.py), which can use tagging datasets created using the [make_dataset.py](make_dataset.py) script.
 Note that `model.py` accepts pre-trained Word Embedding models via **text files** with no header. For Mimick models, this exact format is output into the path in [mimick/model.py](mimick/model.py) script's `--output` argument. For Word2Vec, FastText, or Polyglot models, one can create such a file using the [scripts/output_word_vectors.py](scripts/output_word_vectors.py) script that accepts a model (.pkl or .bin) and the desired output vocabulary (.txt).
+
+## Citation
+
+Please cite our paper if you use this code.
+
+```latex
+@inproceedings{pinter2017mimicking,
+  title={Mimicking Word Embeddings using Subword RNNs},
+  author={Pinter, Yuval and Guthrie, Robert and Eisenstein, Jacob},
+  booktitle={Proceedings of the 2017 Conference on Empirical Methods in Natural Language Processing},
+  pages={102--112},
+  year={2017}
+}
+```
