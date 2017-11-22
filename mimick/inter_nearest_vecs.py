@@ -8,6 +8,7 @@ import numpy as np
 import collections
 import argparse
 from model import LSTMMimick, CNNMimick
+from make_dataset import read_text_embs
 
 __author__ = "Yuval Pinter, 2017"
 
@@ -31,7 +32,10 @@ if __name__ == "__main__":
     opts = parser.parse_args()
 
     # load vocab
-    voc_words, voc_vecs = pickle.load(open(opts.vectors))
+    if opts.w2v_format:
+        voc_words, voc_vecs = read_text_embs(opts.vectors)
+    else:
+        voc_words, voc_vecs = pickle.load(open(opts.vectors))
 
     # load model
     c2i = pickle.load(open(opts.c2i))
