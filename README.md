@@ -10,7 +10,7 @@ Given a word embedding dictionary (with vectors from, e.g. FastText or Polyglot 
 The main dependency for this project is DyNet. Get it [here](http://dynet.readthedocs.io/en/latest/python.html). As of November 22, 2017, the code complies with Dynet 2.0. You may access the 1.0 version code via the commit log.
 
 ## Create Mimick models
-The [mimick](mimick) directory contains scripts relevant to the Mimick model: dataset creation, model creation, intrinsic analysis. The [models](mimick/models) directory within contains models trained for all 23 languages mentioned in the paper. If you're using the pre-trained models, you don't need anything else from the [mimick](mimick) directory in order to run the tagging model. If you train new models, please add them here via pull request!
+The [mimick](mimick) directory contains scripts relevant to the Mimick model: dataset creation, model creation, intrinsic analysis (see readme within). The [models](mimick/models) directory within contains models trained for all 23 languages mentioned in the paper. If you're using the pre-trained models, you don't need anything else from the [mimick](mimick) directory in order to run the tagging model. If you train new models, please add them here via pull request!
 
 * November 22, 2017 note: the pre-trained models were saved in DyNet 1.0 format. It is still possible to load them using the `old_load()` function in `mimick/model.py`, but it could be somewhat of a pain. Another option is to use DyNet 1.0 and an old version of this codebase.
 I will be re-training and saving models in the new format, but don't expect it too soon.
