@@ -7,7 +7,7 @@ import cPickle as pickle
 import numpy as np
 import collections
 import argparse
-from model import LSTMMimick, CNNMimick
+from model import LSTMMimick, CNNMimick, DEFAULT_CHAR_DIM, DEFAULT_HIDDEN_DIM, DEFAULT_LSTM_LAYERS
 from make_dataset import read_text_embs
 
 __author__ = "Yuval Pinter, 2017"
@@ -29,6 +29,9 @@ if __name__ == "__main__":
     parser.add_argument("--vectors", required=True, dest="vectors", help="Pickle file with reference word vectors")
     parser.add_argument("--w2v-format", dest="w2v_format", action="store_true", help="Vector file is in textual w2v format")
     #parser.add_argument("--ktop", dest="ktop", default=10, help="Number of top neighbors to present (optional)")
+    parser.add_argument("--char-dim", type=int, default=DEFAULT_CHAR_DIM, dest="char_dim", help="dimension for character embeddings (default = {})".format(DEFAULT_CHAR_DIM))
+    parser.add_argument("--hidden-dim", type=int, default=DEFAULT_HIDDEN_DIM, dest="hidden_dim", help="dimension for LSTM layers (default = {})".format(DEFAULT_HIDDEN_DIM))
+    parser.add_argument("--num-lstm-layers", type=int, default=DEFAULT_LSTM_LAYERS, dest="num_lstm_layers", help="Number of LSTM layers (default = {})".format(DEFAULT_LSTM_LAYERS))
     opts = parser.parse_args()
 
     # load vocab
@@ -37,13 +40,17 @@ if __name__ == "__main__":
     else:
         voc_words, voc_vecs = pickle.load(open(opts.vectors))
 
+    we_dim = len(voc_vecs[0])
+    
     # load model
     c2i = pickle.load(open(opts.c2i))
     if opts.use_cnn:
         ### TODO add optional params to opts for compliance with file dimensions (see CNNMimick.__init__)
-        mimick = CNNMimick(c2i, file=opts.mimick, word_embedding_dim=len(voc_vecs[0]))
+        mimick = CNNMimick(c2i, file=opts.mimick, word_embedding_dim=we_dim)
     else:
-        mimick = LSTMMimick(c2i, file=opts.mimick)
+        mimick = LSTMMimick(c2i, num_lstm_layers=opts.num_lstm_layers, char_dim=opts.char_dim,\
+                            hidden_dim=opts.hidden_dim,\
+                            word_embedding_dim=we_dim, file=opts.mimick)
 
     # prompt
     while True:
