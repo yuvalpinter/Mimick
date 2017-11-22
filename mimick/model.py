@@ -240,10 +240,10 @@ if __name__ == "__main__":
     parser.add_argument("--output", dest="output", help="file with all embeddings")
     parser.add_argument("--model-out", dest="model_out", help="file with model parameters")
     parser.add_argument("--lang", dest="lang", default="en", help="language")
-    parser.add_argument("--char-dim", default=DEFAULT_CHAR_DIM, dest="char_dim", help="dimension for character embeddings (default = {})".format(DEFAULT_CHAR_DIM))
-    parser.add_argument("--hidden-dim", default=DEFAULT_HIDDEN_DIM, dest="hidden_dim", help="dimension for LSTM layers (default = {})".format(DEFAULT_HIDDEN_DIM))
+    parser.add_argument("--char-dim", type=int, default=DEFAULT_CHAR_DIM, dest="char_dim", help="dimension for character embeddings (default = {})".format(DEFAULT_CHAR_DIM))
+    parser.add_argument("--hidden-dim", type=int, default=DEFAULT_HIDDEN_DIM, dest="hidden_dim", help="dimension for LSTM layers (default = {})".format(DEFAULT_HIDDEN_DIM))
     ### LSTM ###
-    parser.add_argument("--num-lstm-layers", default=DEFAULT_LSTM_LAYERS, dest="num_lstm_layers", help="Number of LSTM layers (default = {})".format(DEFAULT_LSTM_LAYERS))
+    parser.add_argument("--num-lstm-layers", type=int, default=DEFAULT_LSTM_LAYERS, dest="num_lstm_layers", help="Number of LSTM layers (default = {})".format(DEFAULT_LSTM_LAYERS))
     ### CNN ###
     parser.add_argument("--use-cnn", dest="cnn", action="store_true", help="if toggled, train CNN and not LSTM")
     parser.add_argument("--num-conv-layers", type=int, default=1, dest="num_conv_layers", help="Number of CNN layers (default = 1)")
