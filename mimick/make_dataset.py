@@ -72,7 +72,6 @@ if __name__ == "__main__":
             in_vocab += 1
         training_instances.append(Instance(charseq(word, c2i), emb))
     training_char_count = len(c2i)
-
     print "Total in Embeddings vocabulary:", len(words)
     print "Training set character count: ", training_char_count
 

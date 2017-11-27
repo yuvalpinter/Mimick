@@ -199,8 +199,7 @@ class LSTMMimick:
         members_to_save.append(self.lstm_to_rep_bias)
         members_to_save.append(self.mlp_out)
         members_to_save.append(self.mlp_out_bias)
-        #self.model.save(file_name, members_to_save)
-        self.model.save(file_name)
+        self.model.save(file_name, members_to_save)
 
         # character mapping saved separately
         cPickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
@@ -232,7 +231,6 @@ if __name__ == "__main__":
     # Argument parsing
     # ===-----------------------------------------------------------------------===
     parser = argparse.ArgumentParser()
-
     parser.add_argument("--dataset", required=True, help=".pkl file to use")
     parser.add_argument("--vocab", required=True, help="total vocab to output")
     parser.add_argument("--output", help="file with all embeddings")
@@ -300,7 +298,6 @@ if __name__ == "__main__":
 
     # Load words to write
     vocab_words = {}
-
     if populate_test_insts_from_vocab:
         train_words = [wordify(w, i2c) for w in training_instances]
     with codecs.open(options.vocab, "r", "utf-8") as vocab_file:
@@ -384,7 +381,6 @@ if __name__ == "__main__":
 
         root_logger.info("\n")
         root_logger.info("Epoch {} complete".format(epoch + 1))
-
         # here used to be a learning rate update, no longer supported in dynet 2.0
         print trainer.status()
 
@@ -435,8 +431,7 @@ if __name__ == "__main__":
                 if rand < showcase_size:
                     showcase[rand] = word
 
-    if (len(test_instances) > 0): root_logger.info("Average norm for trained: {}".format(inferred_vec_norms / len(test_instances)))
-
+    root_logger.info("Average norm for trained: {}".format(inferred_vec_norms / len(test_instances)))
 
     if options.debug:
         similar_words = {}

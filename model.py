@@ -5,7 +5,7 @@ from __future__ import division
 from collections import Counter
 from _collections import defaultdict
 from evaluate_morphotags import Evaluator
-from sys import maxsize
+from sys import maxint
 
 import collections
 import argparse
@@ -14,7 +14,6 @@ import cPickle
 import logging
 import progressbar
 import os
-import codecs
 import dynet as dy
 import numpy as np
 
@@ -97,19 +96,6 @@ class LSTMTagger:
             self.mlp_out[att] = self.model.add_parameters((set_size, set_size), name=att+"O")
             self.mlp_out_bias[att] = self.model.add_parameters(set_size, name=att+"Ob")
 
-
-    def dump_embeddings(self, filename):
-        with codecs.open(filename, "w", "utf-8") as writer:
-            #writer.write("{} {}\n".format(self.vocab_size, self.word_embedding_dim))
-            writer.write("{} {}\n".format(self.words_lookup.shape()[0], self.words_lookup.shape()[1]))
-            for w,i in w2i.items():
-                wemb = dy.lookup(self.words_lookup, i, update=self.we_update)
-                writer.write(w + " ")
-                for i in wemb.npvalue():
-                    writer.write(str(i) + " ")
-                writer.write("\n")
-
-
     def word_rep(self, word, char_ids):
         '''
         :param word: index of word in lookup table
@@ -126,17 +112,10 @@ class LSTMTagger:
     def build_tagging_graph(self, sentence, word_chars):
         dy.renew_cg()
 
-<<<<<<< HEAD
-        if word_chars is not None:
-            embeddings = [self.word_rep(w, chars) for w, chars in zip(sentence, word_chars)]
-        else:
-            embeddings = [self.word_rep(w, word_chars) for w in sentence]
-=======
         if word_chars == None:
             embeddings = [self.word_rep(w, None) for w in sentence]
         else:
             embeddings = [self.word_rep(w, chars) for w, chars in zip(sentence, word_chars)]
->>>>>>> upstream/master
 
         lstm_out = self.word_bi_lstm.transduce(embeddings)
 
@@ -224,8 +203,7 @@ class LSTMTagger:
         members_to_save.extend(utils.sortvals(self.lstm_to_tags_bias))
         members_to_save.extend(utils.sortvals(self.mlp_out))
         members_to_save.extend(utils.sortvals(self.mlp_out_bias))
-        #self.model.save(file_name, members_to_save)
-        self.model.save(file_name)
+        self.model.save(file_name, members_to_save)
 
         with open(file_name + "-atts", 'w') as attdict:
             attdict.write("\t".join(sorted(self.attributes)))
@@ -262,8 +240,8 @@ if __name__ == "__main__":
     parser.add_argument("--num-epochs", default=20, dest="num_epochs", type=int, help="Number of full passes through training set (default - 20)")
     parser.add_argument("--num-lstm-layers", default=2, dest="lstm_layers", type=int, help="Number of LSTM layers (default - 2)")
     parser.add_argument("--hidden-dim", default=128, dest="hidden_dim", type=int, help="Size of LSTM hidden layers (default - 128)")
-    parser.add_argument("--training-sentence-size", default=maxsize, dest="training_sentence_size", type=int, help="Instance count of training set (default - unlimited)")
-    parser.add_argument("--token-size", default=maxsize, dest="token_size", type=int, help="Token count of training set (default - unlimited)")
+    parser.add_argument("--training-sentence-size", default=maxint, dest="training_sentence_size", type=int, help="Instance count of training set (default - unlimited)")
+    parser.add_argument("--token-size", default=maxint, dest="token_size", type=int, help="Token count of training set (default - unlimited)")
     parser.add_argument("--learning-rate", default=0.01, dest="learning_rate", type=float, help="Initial learning rate (default - 0.01)")
     parser.add_argument("--dropout", default=-1, dest="dropout", type=float, help="Amount of dropout to apply to LSTM part of graph (default - off)")
     parser.add_argument("--no-we-update", dest="no_we_update", action="store_true", help="Word Embeddings aren't updated")
@@ -305,7 +283,7 @@ if __name__ == "__main__":
                options.training_sentence_size, options.token_size, options.learning_rate, options.dropout, options.loss_prop))
 
     if options.debug:
-        print("DEBUG MODE")
+        print "DEBUG MODE"
 
     # ===-----------------------------------------------------------------------===
     # Read in dataset
@@ -348,8 +326,6 @@ if __name__ == "__main__":
         word_embeddings = utils.read_pretrained_embeddings(options.word_embeddings, w2i)
     else:
         word_embeddings = None
-
-
 
     tag_set_sizes = { att: len(t2i) for att, t2i in t2is.items() }
 
@@ -423,7 +399,6 @@ if __name__ == "__main__":
         # log epoch's train phase
         logging.info("\n")
         logging.info("Epoch {} complete".format(epoch + 1))
-
         # here used to be a learning rate update, no longer supported in dynet 2.0
         print trainer.status()
 
@@ -524,11 +499,6 @@ if __name__ == "__main__":
                 os.remove(old_model_file_name + "-atts")
 
         # epoch loop ends
-
-
-    # dump embeddings after tagger training
-    emb_dump = options.log_dir + "/trained-embeddings.txt"
-    model.dump_embeddings(emb_dump)
 
     # evaluate test data (once)
     logging.info("\n")
