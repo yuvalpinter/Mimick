@@ -68,7 +68,7 @@ class LSTMTagger:
             vocab_size = word_embeddings.shape[0]
             word_embedding_dim = word_embeddings.shape[1]
 
-        self.words_lookup = self.model.add_lookup_parameters((vocab_size, word_embedding_dim))
+        self.words_lookup = self.model.add_lookup_parameters((vocab_size, word_embedding_dim), name="we")
 
         if word_embeddings is not None:
             self.words_lookup.init_from_array(word_embeddings)
@@ -76,7 +76,7 @@ class LSTMTagger:
         # Char LSTM Parameters
         self.use_char_rnn = use_char_rnn
         if use_char_rnn:
-            self.char_lookup = self.model.add_lookup_parameters((charset_size, char_embedding_dim))
+            self.char_lookup = self.model.add_lookup_parameters((charset_size, char_embedding_dim), name="ce")
             self.char_bi_lstm = dy.BiRNNBuilder(1, char_embedding_dim, hidden_dim, self.model, dy.LSTMBuilder)
 
         # Word LSTM parameters
@@ -92,10 +92,10 @@ class LSTMTagger:
         self.mlp_out = {}
         self.mlp_out_bias = {}
         for att, set_size in tagset_sizes.items():
-            self.lstm_to_tags_params[att] = self.model.add_parameters((set_size, hidden_dim))
-            self.lstm_to_tags_bias[att] = self.model.add_parameters(set_size)
-            self.mlp_out[att] = self.model.add_parameters((set_size, set_size))
-            self.mlp_out_bias[att] = self.model.add_parameters(set_size)
+            self.lstm_to_tags_params[att] = self.model.add_parameters((set_size, hidden_dim), name=att+"H")
+            self.lstm_to_tags_bias[att] = self.model.add_parameters(set_size, name=att+"Hb")
+            self.mlp_out[att] = self.model.add_parameters((set_size, set_size), name=att+"O")
+            self.mlp_out_bias[att] = self.model.add_parameters(set_size, name=att+"Ob")
 
 
     def dump_embeddings(self, filename):
@@ -126,10 +126,17 @@ class LSTMTagger:
     def build_tagging_graph(self, sentence, word_chars):
         dy.renew_cg()
 
+<<<<<<< HEAD
         if word_chars is not None:
             embeddings = [self.word_rep(w, chars) for w, chars in zip(sentence, word_chars)]
         else:
             embeddings = [self.word_rep(w, word_chars) for w in sentence]
+=======
+        if word_chars == None:
+            embeddings = [self.word_rep(w, None) for w in sentence]
+        else:
+            embeddings = [self.word_rep(w, chars) for w, chars in zip(sentence, word_chars)]
+>>>>>>> upstream/master
 
         lstm_out = self.word_bi_lstm.transduce(embeddings)
 
@@ -191,11 +198,21 @@ class LSTMTagger:
 
     def disable_dropout(self):
         self.word_bi_lstm.disable_dropout()
-
+        
     def save(self, file_name):
         '''
         Serialize model parameters for future loading and use.
-        Currently loaded using initializer in scripts/test_model.py
+        TODO change reading in scripts/test_model.py
+        '''
+        self.model.save(file_name)
+        
+        with open(file_name + "-atts", 'w') as attdict:
+            attdict.write("\t".join(sorted(self.attributes)))
+
+    def old_save(self, file_name):
+        '''
+        Serialize model parameters for future loading and use.
+        Old version (pre dynet 2.0) loaded using initializer in scripts/test_model.py
         '''
         members_to_save = []
         members_to_save.append(self.words_lookup)
@@ -353,8 +370,6 @@ if __name__ == "__main__":
                        vocab_size=len(w2i),
                        word_embedding_dim=DEFAULT_WORD_EMBEDDING_SIZE)
 
-
-    #trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9, 0.1)
     trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9)
     logging.info("Training Algorithm: {}".format(type(trainer)))
 
@@ -408,8 +423,9 @@ if __name__ == "__main__":
         # log epoch's train phase
         logging.info("\n")
         logging.info("Epoch {} complete".format(epoch + 1))
-        trainer.update_epoch(1)
-        print(trainer.status())
+
+        # here used to be a learning rate update, no longer supported in dynet 2.0
+        print trainer.status()
 
         train_loss = train_loss / len(train_instances)
 
@@ -505,11 +521,7 @@ if __name__ == "__main__":
                 logging.info("Removing files from previous epoch.")
                 old_model_file_name = "{}/model_epoch-{:02d}.bin".format(options.log_dir, epoch)
                 os.remove(old_model_file_name)
-                # Seems to be a dynet mismatch error; previous version of model.save would produce these files. 
-                # Potential todo: use updated dynet API to save individual parameters. Currently saving whole model.
-                #os.remove(old_model_file_name + ".pym")
-                #os.remove(old_model_file_name + ".pyk")
-                #os.remove(old_model_file_name + "-atts")
+                os.remove(old_model_file_name + "-atts")
 
         # epoch loop ends
 
