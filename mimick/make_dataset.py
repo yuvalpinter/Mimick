@@ -24,21 +24,22 @@ PADDING_CHAR = "<*>"
 
 Instance = collections.namedtuple("Instance", ["chars", "word_emb"])
 
-def read_text_embs(filename):
+def read_text_embs(files):
     words = []
     embs = []
-    with codecs.open(filename, "r", "utf-8") as f:
-        for line in f:
-            split = line.split()
-            if len(split) > 2:
-                words.append(split[0])
-                embs.append(np.array([float(s) for s in split[1:]]))
+    for filename in files:
+        with codecs.open(filename, "r", "utf-8") as f:
+            for line in f:
+                split = line.split()
+                if len(split) > 2:
+                    words.append(split[0])
+                    embs.append(np.array([float(s) for s in split[1:]]))
     return words, embs
 
 if __name__ == "__main__":
     # parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vectors", required=True, dest="vectors", help="Pickle file from which to get target word vectors")
+    parser.add_argument("--vectors", required=True, nargs="*", dest="vectors", help="Pickle file(s) from which to get target word vectors")
     parser.add_argument("--w2v-format", dest="w2v_format", action="store_true", help="Vector file is in textual w2v format")
     parser.add_argument("--vocab", dest="vocab", help="File containing words for unlabeled test set (optional)")
     parser.add_argument("--output", required=True, dest="output", help="Output filename (.pkl)")
