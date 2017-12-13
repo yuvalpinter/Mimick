@@ -234,7 +234,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", required=True, help=".pkl file to use")
     parser.add_argument("--vocab", required=True, help="total vocab to output")
     parser.add_argument("--output", help="file with all embeddings")
-    parser.add_argument("--model-out", help="file with model parameters")
+    parser.add_argument("--model-out", default="model.bin", help="file with model parameters")
     parser.add_argument("--lang", default="en", help="language (optional, appears in log dir name)")
     parser.add_argument("--char-dim", type=int, default=DEFAULT_CHAR_DIM, help="dimension for character embeddings (default = {})".format(DEFAULT_CHAR_DIM))
     parser.add_argument("--hidden-dim", type=int, default=DEFAULT_HIDDEN_DIM, help="dimension for LSTM layers (default = {})".format(DEFAULT_HIDDEN_DIM))
@@ -247,6 +247,7 @@ if __name__ == "__main__":
     parser.add_argument("--pooling-maxk", type=int, default=DEFAULT_POOLING_MAXK, help="K for K-max pooling (default = 1)")
     parser.add_argument("--stride", default=DEFAULT_STRIDE, dest="w_stride", help="'Width' stride for CNN layers (default = 1)")
     ### END ###
+    parser.add_argument("--early-stopping", action="store_true", help="early stops if dev loss hasn't improved in last {} epochs".format(EARLY_STOPPING_CONST))
     parser.add_argument("--all-from-mimick", action="store_true", help="if toggled, vectors in original training set are overriden by Mimick-generated vectors")
     parser.add_argument("--normalized-targets", action="store_true", help="if toggled, train on normalized vectors from set")
     parser.add_argument("--dropout", default=-1, type=float, help="amount of dropout to apply to LSTM part of graph")
@@ -275,6 +276,8 @@ if __name__ == "__main__":
     root_logger.info("Model output location: {}".format(options.model_out))
     if options.all_from_mimick:
         root_logger.info("All output vectors to be written from Mimick inference.")
+    if options.early_stopping:
+        root_logger.info("Implemented early stopping, epoch count = {}".format(EARLY_STOPPING_CONST))
     
     root_logger.info("\nModel Architecture: {}".format('CNN' if options.cnn else 'LSTM'))
     if options.cnn:
@@ -339,8 +342,7 @@ if __name__ == "__main__":
         dev_instances = [Instance(ins.chars, ins.word_emb/np.linalg.norm(ins.word_emb)) for ins in dev_instances]
 
     epcs = int(options.num_epochs)
-    pretrained_vec_norms = 0.0
-    inferred_vec_norms = 0.0
+    dev_losses = []
 
     # Shuffle set, divide into cross-folds each epoch
     for epoch in xrange(epcs):
@@ -369,16 +371,6 @@ if __name__ == "__main__":
             loss_expr.backward()
             trainer.update()
 
-            if epoch == epcs - 1:
-                word = wordify(instance, i2c)
-                if word in vocab_words:
-                    pretrained_vec_norms += np.linalg.norm(instance.word_emb)
-                    if options.all_from_mimick:
-                        vocab_words[word] = np.array(obs_emb.value())
-                        inferred_vec_norms += np.linalg.norm(vocab_words[word])
-                    else: # log vocab embeddings
-                        vocab_words[word] = instance.word_emb
-
         root_logger.info("\n")
         root_logger.info("Epoch {} complete".format(epoch + 1))
         # here used to be a learning rate update, no longer supported in dynet 2.0
@@ -396,22 +388,42 @@ if __name__ == "__main__":
             obs_emb = model.predict_emb(instance.chars)
             dev_loss += model.loss(obs_emb, instance.word_emb).scalar_value()
 
-            if epoch == epcs - 1:
-                word = wordify(instance, i2c)
-                if word in vocab_words:
-                    pretrained_vec_norms += np.linalg.norm(instance.word_emb)
-                    if options.all_from_mimick:
-                        vocab_words[word] = np.array(obs_emb.value())
-                        inferred_vec_norms += np.linalg.norm(vocab_words[word])
-                    else: # log vocab embeddings
-                        vocab_words[word] = instance.word_emb
-
         root_logger.info("Train Loss: {}".format(train_loss))
         root_logger.info("Dev Loss: {}".format(dev_loss))
+        
+        dev_losses.append(dev_loss)
+        if options.early_stopping and dev_loss == min(dev_losses):
+            # save model
+            root_logger.info("Saving epoch model")
+            model.save(options.model_out)
+        
+        if epoch >= 5 and options.early_stopping and np.argmin(dev_losses[-EARLY_STOPPING_CONST:]) == 0:
+            root_logger.info("Early stopping after {} epochs. Reloading best model")
+            model.model.populate(options.model_out)
+            break
 
+    if not options.early_stopping:
+        # save model (with e-s it's already saved)
+        model.save(options.model_out)
+    
+    # populate vocab_words and compute dataset statistics
+    pretrained_vec_norms = 0.0
+    inferred_vec_norms = 0.0
+    for instance in train_instances + dev_instances:
+        word = wordify(instance, i2c)
+        if word in vocab_words:
+            pretrained_vec_norms += np.linalg.norm(instance.word_emb)
+            if options.all_from_mimick:
+                # infer and populate
+                vocab_words[word] = np.array(obs_emb.value())
+                inferred_vec_norms += np.linalg.norm(vocab_words[word])
+            else:
+                # populate using vocab embeddings
+                vocab_words[word] = instance.word_emb
+    
     root_logger.info("\n")
     root_logger.info("Average norm for pre-trained in vocab: {}".format(pretrained_vec_norms / len(vocab_words)))
-
+    
     # Infer for test set
     showcase_size = 5
     top_to_show = 10
@@ -431,7 +443,8 @@ if __name__ == "__main__":
                 if rand < showcase_size:
                     showcase[rand] = word
 
-    root_logger.info("Average norm for trained: {}".format(inferred_vec_norms / len(test_instances)))
+    inferred_denom = len(vocab_words) if options.all_from_mimick else len(test_instances)
+    root_logger.info("Average norm for trained: {}".format(inferred_vec_norms / inferred_denom))
 
     if options.debug:
         similar_words = {}
@@ -451,7 +464,3 @@ if __name__ == "__main__":
                 for i in emb:
                     writer.write("{:.6f} ".format(i))
                 writer.write("\n")
-
-    # save model
-    if options.model_out is not None:
-        model.save(options.model_out)
