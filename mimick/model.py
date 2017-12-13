@@ -379,8 +379,6 @@ if __name__ == "__main__":
         # Evaluate dev data
         model.disable_dropout()
         dev_loss = 0.0
-        dev_correct = Counter()
-        dev_total = Counter()
 
         bar = progressbar.ProgressBar()
         for instance in bar(dev_instances):
@@ -398,8 +396,17 @@ if __name__ == "__main__":
             model.save(options.model_out)
         
         if epoch >= 5 and options.early_stopping and np.argmin(dev_losses[-EARLY_STOPPING_CONST:]) == 0:
-            root_logger.info("Early stopping after {} epochs. Reloading best model")
+            root_logger.info("Early stopping after {} epochs. Reloading best model".format(epoch + 1))
             model.model.populate(options.model_out)
+            
+            # recompute dev loss to make sure
+            dev_loss = 0.0
+            bar = progressbar.ProgressBar()
+            for instance in bar(dev_instances):
+                if len(instance.chars) <= 0: continue
+                obs_emb = model.predict_emb(instance.chars)
+                dev_loss += model.loss(obs_emb, instance.word_emb).scalar_value()
+            root_logger.info("recomputed dev loss: {}".format(dev_loss))
             break
 
     if not options.early_stopping:
