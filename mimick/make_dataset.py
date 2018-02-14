@@ -75,7 +75,7 @@ if __name__ == "__main__":
     print "Total in Embeddings vocabulary:", len(words)
     print "Training set character count: ", training_char_count
 
-    # Test
+    # Test: Will be doing inference on these words using mimick
     if len(vocab) > 0:
         total = len(vocab)
         for v in vocab:
