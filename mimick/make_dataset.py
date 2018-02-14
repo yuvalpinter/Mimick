@@ -81,10 +81,10 @@ if __name__ == "__main__":
         for v in vocab:
             if v not in words:
                 test_instances.append(Instance(charseq(v, c2i), np.array([0.0] * dim)))
-        print "Total Number of output words:", total
-        print "Total in Training Vocabulary:", in_vocab
-        print "Percentage in-vocab:", in_vocab / total
-        print "Total character count: ", len(c2i)
+    print "Total Number of output words:", total
+    print "Total in Training Vocabulary:", in_vocab
+    print "Percentage in-vocab:", in_vocab / total
+    print "Total character count: ", len(c2i)
 
     c2i[PADDING_CHAR] = len(c2i)
 
