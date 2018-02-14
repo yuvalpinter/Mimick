@@ -75,17 +75,16 @@ if __name__ == "__main__":
     print "Total in Embeddings vocabulary:", len(words)
     print "Training set character count: ", training_char_count
 
-    # Test
+    # Test: Will be doing inference on these words using mimick
     if len(vocab) > 0:
-        in_vocab = 0
         total = len(vocab)
         for v in vocab:
             if v not in words:
                 test_instances.append(Instance(charseq(v, c2i), np.array([0.0] * dim)))
-        print "Total Number of output words:", total
-        print "Total in Training Vocabulary:", in_vocab
-        print "Percentage in-vocab:", in_vocab / total
-        print "Total character count: ", len(c2i)
+    print "Total Number of output words:", total
+    print "Total in Training Vocabulary:", in_vocab
+    print "Percentage in-vocab:", in_vocab / total
+    print "Total character count: ", len(c2i)
 
     c2i[PADDING_CHAR] = len(c2i)
 
