@@ -54,11 +54,11 @@ if options.w2v:
 else:
     words, embs = cPickle.load(open(options.vectors, "r"))
     unk_sym = POLYGLOT_UNK
+word_to_ix = {w : i for (i,w) in enumerate(words)}
 if options.average_unk:
     unk_emb = average(embs)
 else:
     unk_emb = embs[word_to_ix[unk_sym]]
-word_to_ix = {w : i for (i,w) in enumerate(words)}
 
 # intersect vocab and embeddings into output file
 with codecs.open(options.output, "w", "utf-8") as outfile:
