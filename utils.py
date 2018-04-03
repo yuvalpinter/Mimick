@@ -2,7 +2,6 @@ import cPickle
 import itertools
 import codecs
 import numpy as np
-import dynet as dy
 
 NONE_TAG = "<NONE>"
 POS_KEY = "POS"
