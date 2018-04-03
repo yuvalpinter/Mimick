@@ -2,7 +2,6 @@ import cPickle
 import itertools
 import codecs
 import numpy as np
-import dynet as dy
 
 NONE_TAG = "<NONE>"
 POS_KEY = "POS"
@@ -42,6 +41,25 @@ def read_pretrained_embeddings(filename, w2i):
             # segment it as a ton of ! and then the sum of these morpheme vectors is huge.
             out[w2i[word]] = np.array(embed)
     return out
+
+
+def read_text_embs(files):
+    word_embs = dict()
+    for filename in files:
+        with codecs.open(filename, "r", "utf-8") as f:
+            for line in f:
+                split = line.split()
+                if len(split) > 2:
+                    word_embs[split[0]] = np.array([float(s) for s in split[1:]])
+    return zip(*word_embs.iteritems())
+
+def read_pickle_embs(files):
+    word_embs = dict()
+    for filename in files:
+        print filename
+        words, embs = cPickle.load(open(filename, "r"))
+        word_embs.update(zip(words, embs))
+    return zip(*word_embs.iteritems())
 
 
 def split_tagstring(s, uni_key=False, has_pos=False):

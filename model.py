@@ -21,8 +21,6 @@ import utils
 
 __author__ = "Yuval Pinter and Robert Guthrie, 2017"
 
-logging.basicConfig(level=logging.INFO)
-
 Instance = collections.namedtuple("Instance", ["sentence", "tags"])
 
 NONE_TAG = "<NONE>"
@@ -253,6 +251,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-model", dest="no_model", action="store_true", help="Don't serialize models")
     parser.add_argument("--dynet-mem", help="Ignore this external argument")
     parser.add_argument("--debug", dest="debug", action="store_true", help="Debug mode")
+    parser.add_argument("--log-to-stdout", dest="log_to_stdout", action="store_true", help="Log to STDOUT")
     options = parser.parse_args()
 
 
@@ -261,7 +260,10 @@ if __name__ == "__main__":
     # ===-----------------------------------------------------------------------===
     if not os.path.exists(options.log_dir):
         os.mkdir(options.log_dir)
-    logging.basicConfig(filename=options.log_dir + "/log.txt", filemode="w", format="%(message)s", level=logging.INFO)
+    if options.log_to_stdout:
+        logging.basicConfig(level=logging.INFO)
+    else:
+        logging.basicConfig(filename=options.log_dir + "/log.txt", filemode="w", format="%(message)s", level=logging.INFO)
     train_dev_cost = utils.CSVLogger(options.log_dir + "/train_dev.log", ["Train.cost", "Dev.cost"])
 
 
