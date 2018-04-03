@@ -39,7 +39,7 @@ def read_text_embs(files):
 if __name__ == "__main__":
     # parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vectors", required=True, nargs="*", dest="vectors", help="Pickle file(s) from which to get target word vectors")
+    parser.add_argument("--vectors", required=True, dest="vectors", help="Pickle file(s) from which to get target word vectors")
     parser.add_argument("--w2v-format", dest="w2v_format", action="store_true", help="Vector file is in textual w2v format")
     parser.add_argument("--vocab", dest="vocab", help="File containing words for unlabeled test set (optional)")
     parser.add_argument("--output", required=True, dest="output", help="Output filename (.pkl)")
@@ -81,10 +81,10 @@ if __name__ == "__main__":
         for v in vocab:
             if v not in words:
                 test_instances.append(Instance(charseq(v, c2i), np.array([0.0] * dim)))
-    print "Total Number of output words:", total
-    print "Total in Training Vocabulary:", in_vocab
-    print "Percentage in-vocab:", in_vocab / total
-    print "Total character count: ", len(c2i)
+        print "Total Number of output words:", total
+        print "Total in Training Vocabulary:", in_vocab
+        print "Percentage in-vocab:", in_vocab / total
+        print "Total character count: ", len(c2i)
 
     c2i[PADDING_CHAR] = len(c2i)
 

@@ -74,7 +74,10 @@ def read_file(filename, w2i, t2is, c2i, options):
                 data = line.split("\t")
                 if '-' in data[0]: # Some UD languages have contractions on a separate line, we don't want to include them also
                     continue
-                idx = int(data[0])
+                try:
+                    idx = int(data[0])
+                except:
+                    continue
                 word = data[1]
                 postag = data[3] if options.ud_tags else data[4]
                 morphotags = {} if options.no_morphotags else split_tagstring(data[5], uni_key=False)

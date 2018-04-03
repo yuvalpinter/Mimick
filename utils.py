@@ -2,9 +2,7 @@ import cPickle
 import itertools
 import codecs
 import numpy as np
-import matplotlib.pyplot as plt
 import dynet as dy
-from sklearn.metrics import confusion_matrix
 
 NONE_TAG = "<NONE>"
 POS_KEY = "POS"

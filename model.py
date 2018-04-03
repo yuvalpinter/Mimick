@@ -21,6 +21,8 @@ import utils
 
 __author__ = "Yuval Pinter and Robert Guthrie, 2017"
 
+logging.basicConfig(level=logging.INFO)
+
 Instance = collections.namedtuple("Instance", ["sentence", "tags"])
 
 NONE_TAG = "<NONE>"
@@ -388,7 +390,7 @@ if __name__ == "__main__":
 
             # bail if loss is NaN
             if np.isnan(loss):
-                assert False, "NaN occured"
+                assert False, "NaN occurred"
 
             train_loss += (loss / len(instance.sentence))
 

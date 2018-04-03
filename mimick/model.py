@@ -22,6 +22,8 @@ from consts import *
 
 __author__ = "Yuval Pinter, 2017"
 
+logging.basicConfig(level=logging.INFO)
+
 Instance = collections.namedtuple("Instance", ["chars", "word_emb"])
 
 ######################################
@@ -423,6 +425,7 @@ if __name__ == "__main__":
             pretrained_vec_norms += np.linalg.norm(instance.word_emb)
             if options.all_from_mimick:
                 # infer and populate
+                obs_emb = model.predict_emb(instance.chars)
                 vocab_words[word] = np.array(obs_emb.value())
                 inferred_vec_norms += np.linalg.norm(vocab_words[word])
             else:
