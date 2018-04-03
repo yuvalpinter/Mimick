@@ -399,7 +399,8 @@ if __name__ == "__main__":
         # log epoch's train phase
         logging.info("\n")
         logging.info("Epoch {} complete".format(epoch + 1))
-        # here used to be a learning rate update, no longer supported in dynet 2.0
+        ### TODO solve learning rate update issue
+        #trainer.learning_rate /= (1.0 - rate_decay)
         print trainer.status()
 
         train_loss = train_loss / len(train_instances)
