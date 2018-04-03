@@ -22,8 +22,6 @@ from consts import *
 
 __author__ = "Yuval Pinter, 2017"
 
-logging.basicConfig(level=logging.INFO)
-
 Instance = collections.namedtuple("Instance", ["chars", "word_emb"])
 
 ######################################
@@ -234,7 +232,7 @@ if __name__ == "__main__":
     # ===-----------------------------------------------------------------------===
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", required=True, help=".pkl file to use")
-    parser.add_argument("--vocab", required=True, help="total vocab to output")
+    parser.add_argument("--vocab", required=True, nargs="*", help="total vocab to output")
     parser.add_argument("--output", help="file with all embeddings")
     parser.add_argument("--model-out", default="model.bin", help="file with model parameters")
     parser.add_argument("--lang", default="en", help="language (optional, appears in log dir name)")
@@ -256,24 +254,33 @@ if __name__ == "__main__":
     parser.add_argument("--num-epochs", default=10, type=int, help="Number of full passes through training set (default = 10)")
     parser.add_argument("--learning-rate", default=0.01, type=float, help="Initial learning rate")
     parser.add_argument("--cosine", action="store_true", help="Use cosine as diff measure")
+    parser.add_argument("--log-dir", dest="log_dir", help="Directory where to write logs / serialized models")
     parser.add_argument("--dynet-mem", help="Ignore this outside argument")
     parser.add_argument("--debug", action="store_true", help="Debug mode")
+    parser.add_argument("--log-to-stdout", dest="log_to_stdout", action="store_true", help="Log to STDOUT")
     options = parser.parse_args()
 
     # Set up logging
     log_dir = "embedding_train_mimick-{}-{}{}".format(datetime.datetime.now().strftime('%y%m%d%H%M%S'),\
                                                       options.lang, '-DEBUG' if options.debug else '')
+    if options.log_dir is not None:
+        if not os.path.exists(options.log_dir):
+            os.mkdir(options.log_dir)
+        log_dir = os.path.join(options.log_dir, log_dir)
     os.mkdir(log_dir)
 
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
-    handler = logging.FileHandler(log_dir + '/log.txt', 'w', 'utf-8')
-    formatter = logging.Formatter('%(message)s')
-    handler.setFormatter(formatter)
-    root_logger.addHandler(handler)
+    if options.log_to_stdout:
+        logging.basicConfig(level=logging.INFO)
+    else:
+        formatter = logging.Formatter('%(message)s')
+        handler = logging.FileHandler(log_dir + '/log.txt', 'w', 'utf-8')
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
 
     root_logger.info("Training dataset: {}".format(options.dataset))
-    root_logger.info("Output vocabulary: {}".format(options.vocab))
+    root_logger.info("Output vocabulary: {}".format(options.vocab[0] if len(options.vocab) == 1 else options.vocab))
     root_logger.info("Vectors output location: {}".format(options.output))
     root_logger.info("Model output location: {}".format(options.model_out))
     if options.all_from_mimick:
@@ -305,12 +312,14 @@ if __name__ == "__main__":
     vocab_words = {}
     if populate_test_insts_from_vocab:
         train_words = [wordify(w, i2c) for w in training_instances]
-    with codecs.open(options.vocab, "r", "utf-8") as vocab_file:
-        for vw in vocab_file.readlines():
-            vw = vw.strip()
-            vocab_words[vw] = np.zeros(emb_dim)
-            if populate_test_insts_from_vocab and vw not in train_words:
-                test_instances.append(Instance(charseq(vw, c2i), np.zeros(emb_dim)))
+    for filename in options.vocab:
+        with codecs.open(filename, "r", "utf-8") as vocab_file:
+            for vw in vocab_file.readlines():
+                vw = vw.strip()
+                if vw in vocab_words: continue
+                vocab_words[vw] = np.zeros(emb_dim)
+                if populate_test_insts_from_vocab and vw not in train_words:
+                    test_instances.append(Instance(charseq(vw, c2i), np.zeros(emb_dim)))
     
     if populate_test_insts_from_vocab:
         # need to update i2c if saw new characters
