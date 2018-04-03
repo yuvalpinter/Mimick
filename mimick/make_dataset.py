@@ -39,7 +39,7 @@ def read_text_embs(files):
 if __name__ == "__main__":
     # parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vectors", required=True, nargs="*", dest="vectors", help="Pickle file(s) from which to get target word vectors")
+    parser.add_argument("--vectors", required=True, dest="vectors", help="Pickle file(s) from which to get target word vectors")
     parser.add_argument("--w2v-format", dest="w2v_format", action="store_true", help="Vector file is in textual w2v format")
     parser.add_argument("--vocab", dest="vocab", help="File containing words for unlabeled test set (optional)")
     parser.add_argument("--output", required=True, dest="output", help="Output filename (.pkl)")
