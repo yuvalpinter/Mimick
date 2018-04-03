@@ -388,7 +388,7 @@ if __name__ == "__main__":
 
             # bail if loss is NaN
             if np.isnan(loss):
-                assert False, "NaN occured"
+                assert False, "NaN occurred"
 
             train_loss += (loss / len(instance.sentence))
 
