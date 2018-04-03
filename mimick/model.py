@@ -22,6 +22,8 @@ from consts import *
 
 __author__ = "Yuval Pinter, 2017"
 
+logging.basicConfig(level=logging.INFO)
+
 Instance = collections.namedtuple("Instance", ["chars", "word_emb"])
 
 ######################################

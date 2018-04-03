@@ -21,6 +21,8 @@ import utils
 
 __author__ = "Yuval Pinter and Robert Guthrie, 2017"
 
+logging.basicConfig(level=logging.INFO)
+
 Instance = collections.namedtuple("Instance", ["sentence", "tags"])
 
 NONE_TAG = "<NONE>"
