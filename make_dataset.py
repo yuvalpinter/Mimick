@@ -130,17 +130,17 @@ if __name__ == "__main__":
     c2i = {} # mapping from character to index, for char-RNN concatenations
     output = {}
 
-    # read data from UD files
-    output["training_instances"], output["training_vocab"] = read_file(options.training_data, w2i, t2is, c2i, options)
-    output["dev_instances"], output["dev_vocab"] = read_file(options.dev_data, w2i, t2is, c2i, options)
-    output["test_instances"], output["test_vocab"] = read_file(options.test_data, w2i, t2is, c2i, options)
-
     # Add special tokens / tags / chars to dicts
     w2i[UNK_TAG] = len(w2i)
     for t2i in t2is.values():
         t2i[START_TAG] = len(t2i)
         t2i[END_TAG] = len(t2i)
     c2i[PADDING_CHAR] = len(c2i)
+
+    # read data from UD files
+    output["training_instances"], output["training_vocab"] = read_file(options.training_data, w2i, t2is, c2i, options)
+    output["dev_instances"], output["dev_vocab"] = read_file(options.dev_data, w2i, t2is, c2i, options)
+    output["test_instances"], output["test_vocab"] = read_file(options.test_data, w2i, t2is, c2i, options)
 
     output["w2i"] = w2i
     output["t2is"] = t2is
