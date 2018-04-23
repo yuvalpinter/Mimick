@@ -120,7 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("--test-data", required=True, dest="test_data", help="Test data .txt file")
     parser.add_argument("--ud-tags", dest="ud_tags", action="store_true", help="Extract UD tags instead of original tags")
     parser.add_argument("--no-morphotags", dest="no_morphotags", action="store_true", help="Don't add morphosyntactic tags to dataset")
-    parser.add_argument("-o", required=True, dest="output", help="Output filename (.pkl)")
+    parser.add_argument("--output", required=True, dest="output", help="Output filename (.pkl)")
     parser.add_argument("--vocab-file", dest="vocab_file", default="vocab.txt", help="Text file containing all of the words in \
                         the train/dev/test data to use in outputting embeddings")
     options = parser.parse_args()
