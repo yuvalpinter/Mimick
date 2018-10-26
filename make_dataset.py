@@ -120,8 +120,8 @@ if __name__ == "__main__":
     parser.add_argument("--test-data", required=True, dest="test_data", help="Test data .txt file")
     parser.add_argument("--ud-tags", dest="ud_tags", action="store_true", help="Extract UD tags instead of original tags")
     parser.add_argument("--no-morphotags", dest="no_morphotags", action="store_true", help="Don't add morphosyntactic tags to dataset")
-    parser.add_argument("-o", required=True, dest="output", help="Output filename (.pkl)")
-    parser.add_argument("--vocab-file", dest="vocab_file", default="vocab.txt", help="Text file containing all of the words in \
+    parser.add_argument("--output", required=True, dest="output", help="Output filename (.pkl)")
+    parser.add_argument("--vocab", dest="vocab_file", default="vocab.txt", help="Text file containing all of the words in \
                         the train/dev/test data to use in outputting embeddings")
     options = parser.parse_args()
 
@@ -130,17 +130,17 @@ if __name__ == "__main__":
     c2i = {} # mapping from character to index, for char-RNN concatenations
     output = {}
 
-    # read data from UD files
-    output["training_instances"], output["training_vocab"] = read_file(options.training_data, w2i, t2is, c2i, options)
-    output["dev_instances"], output["dev_vocab"] = read_file(options.dev_data, w2i, t2is, c2i, options)
-    output["test_instances"], output["test_vocab"] = read_file(options.test_data, w2i, t2is, c2i, options)
-
     # Add special tokens / tags / chars to dicts
     w2i[UNK_TAG] = len(w2i)
     for t2i in t2is.values():
         t2i[START_TAG] = len(t2i)
         t2i[END_TAG] = len(t2i)
     c2i[PADDING_CHAR] = len(c2i)
+
+    # read data from UD files
+    output["training_instances"], output["training_vocab"] = read_file(options.training_data, w2i, t2is, c2i, options)
+    output["dev_instances"], output["dev_vocab"] = read_file(options.dev_data, w2i, t2is, c2i, options)
+    output["test_instances"], output["test_vocab"] = read_file(options.test_data, w2i, t2is, c2i, options)
 
     output["w2i"] = w2i
     output["t2is"] = t2is
