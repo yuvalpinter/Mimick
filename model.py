@@ -150,9 +150,9 @@ class LSTMTagger:
                 err.append(err_t)
             errors[att] = dy.esum(err)
         if self.att_props is not None:
+            # rescale losses by attribute frequency
             for att, err in errors.iteritems():
-                prop_vec = dy.inputVector([self.att_props[att]] * err.dim()[0])
-                err = dy.cmult(err, prop_vec)
+                errors[att] = err * self.att_props[att]
         return errors
 
     def tag_sentence(self, sentence, word_chars):
