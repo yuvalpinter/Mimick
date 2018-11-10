@@ -419,7 +419,7 @@ if __name__ == "__main__":
         # log epoch's train phase
         logging.info("\n")
         logging.info("Epoch {} complete".format(epoch + 1))
-        # trainer.learning_rate *= (1.0 - options.rate_decay)
+        trainer.learning_rate *= (1.0 - options.rate_decay)
         print trainer.status()
 
         train_loss = train_loss / len(train_instances)
