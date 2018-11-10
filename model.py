@@ -40,7 +40,7 @@ class LSTMTagger:
     https://github.com/clab/dynet_tutorial_examples/blob/master/tutorial_bilstm_tagger.py
     '''
 
-    def __init__(self, tagset_sizes, num_lstm_layers, hidden_dim, word_embeddings, no_we_update, use_char_rnn, charset_size, char_embedding_dim, att_props=None, vocab_size=None, word_embedding_dim=None):
+    def __init__(self, tagset_sizes, num_lstm_layers, hidden_dim, word_embeddings, no_we_update, use_char_rnn, charset_size, char_embedding_dim, att_props=None, loss_prop=None, vocab_size=None, word_embedding_dim=None):
         '''
         :param tagset_sizes: dictionary of attribute_name:number_of_possible_tags
         :param num_lstm_layers: number of desired LSTM layers
@@ -51,6 +51,7 @@ class LSTMTagger:
         :param charset_size: number of characters expected in dataset (needed for character embedding initialization)
         :param char_embedding_dim: desired character embedding dimension
         :param att_props: proportion of loss to assign each attribute for back-propagation weighting (optional)
+        :param loss_prop: normalization method of assigned loss
         :param vocab_size: number of words in model (ignored if pre-trained embeddings are given)
         :param word_embedding_dim: desired word embedding dimension (ignored if pre-trained embeddings are given)
         '''
@@ -59,7 +60,20 @@ class LSTMTagger:
         self.attributes = tagset_sizes.keys()
         self.we_update = not no_we_update
         if att_props is not None:
-            self.att_props = defaultdict(float, {att:(1.0-p) for att,p in att_props.iteritems()})
+            if loss_prop == 'sqrt':
+                nonlin = lambda x: np.sqrt(x)
+            elif loss_prop == 'log':
+                nonlin = lambda x: np.log2(np.e)*np.log1p(x)
+            elif loss_prop == 'inverse':
+                nonlin = lambda x: 1.5-(1./(x+1.))
+            elif loss_prop == 'counter':
+                nonlin = lambda x: 2.0 - x
+            elif loss_prop == 'cnlog': # counter negative log
+                nonlin = lambda x: 1.0 - np.log2(x)
+            else: # linear
+                nonlin = lambda x: x
+            self.att_props = defaultdict(float, {att:nonlin(1.0-p) for att,p in att_props.iteritems()})
+            print 'attribute proportions:', self.att_props
         else:
             self.att_props = None
 
@@ -243,9 +257,10 @@ if __name__ == "__main__":
     parser.add_argument("--training-sentence-size", default=maxint, dest="training_sentence_size", type=int, help="Instance count of training set (default - unlimited)")
     parser.add_argument("--token-size", default=maxint, dest="token_size", type=int, help="Token count of training set (default - unlimited)")
     parser.add_argument("--learning-rate", default=0.01, dest="learning_rate", type=float, help="Initial learning rate (default - 0.01)")
+    parser.add_argument("--rate-decay", default=0.05, dest="rate_decay", type=float, help="Learning rate decay per epoch (default - 0.05)")
     parser.add_argument("--dropout", default=-1, dest="dropout", type=float, help="Amount of dropout to apply to LSTM part of graph (default - off)")
     parser.add_argument("--no-we-update", dest="no_we_update", action="store_true", help="Word Embeddings aren't updated")
-    parser.add_argument("--loss-prop", dest="loss_prop", action="store_true", help="Proportional loss magnitudes")
+    parser.add_argument("--loss-prop", dest="loss_prop", default=None, help="Proportional loss magnitudes. Values: log, sqrt, linear, inverse, counter")
     parser.add_argument("--use-char-rnn", dest="use_char_rnn", action="store_true", help="Use character RNN (default - off)")
     parser.add_argument("--log-dir", default="log", dest="log_dir", help="Directory where to write logs / serialized models")
     parser.add_argument("--no-model", dest="no_model", action="store_true", help="Don't serialize models")
@@ -333,7 +348,7 @@ if __name__ == "__main__":
 
     tag_set_sizes = { att: len(t2i) for att, t2i in t2is.items() }
 
-    if options.loss_prop:
+    if options.loss_prop is not None:
         att_props = get_att_prop(training_instances)
     else:
         att_props = None
@@ -347,6 +362,7 @@ if __name__ == "__main__":
                        charset_size=len(c2i),
                        char_embedding_dim=DEFAULT_CHAR_EMBEDDING_SIZE,
                        att_props=att_props,
+                       loss_prop=options.loss_prop,
                        vocab_size=len(w2i),
                        word_embedding_dim=DEFAULT_WORD_EMBEDDING_SIZE)
 
@@ -403,8 +419,7 @@ if __name__ == "__main__":
         # log epoch's train phase
         logging.info("\n")
         logging.info("Epoch {} complete".format(epoch + 1))
-        ### TODO solve learning rate update issue
-        #trainer.learning_rate /= (1.0 - rate_decay)
+        # trainer.learning_rate *= (1.0 - options.rate_decay)
         print trainer.status()
 
         train_loss = train_loss / len(train_instances)
