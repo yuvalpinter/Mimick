@@ -5,6 +5,7 @@ either by attribute alone (pooled over values) or by attribute-value combination
 from __future__ import division
 from numpy import average
 from collections import Counter
+from prop_weigh import *
 
 __author__ = "Yuval Pinter, November 2016"
 
@@ -67,7 +68,7 @@ class Evaluator(object):
             return f1(self.correct[att], self.gold[att], self.observed[att])
         return f1(sum(self.correct.values()), sum(self.gold.values()), sum(self.observed.values()))
 
-    def mac_f1(self, att = None):
+    def mac_f1(self, att=None, weigh=sum_w):
         '''
         Macro F1
         :param att: only relevant in att_val mode, otherwise fails (use mic_f1)
@@ -77,8 +78,12 @@ class Evaluator(object):
             keys = all_keys
         else:
             keys = [k for k in all_keys if k[0] == att]
-        f1s = [f1(self.correct[k], self.gold[k], self.observed[k]) for k in keys]
-        return average(f1s)
+        f1s = {k: f1(self.correct[k], self.gold[k], self.observed[k]) for k in keys}
+        weights = {k: props(self.instance_count, self.gold[k], weigh) for k in keys}
+        if sum(weights.values()) == 0:
+            return float('nan')
+        weighted_f1s = [f * weights[k] for k,f in f1s.items()]
+        return sum(weighted_f1s) / sum(weights.values())
 
     def acc(self):
         '''
