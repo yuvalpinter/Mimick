@@ -4,6 +4,7 @@ either by attribute alone (pooled over values) or by attribute-value combination
 '''
 from __future__ import division
 from numpy import average
+from collections import Counter
 
 __author__ = "Yuval Pinter, November 2016"
 
@@ -25,9 +26,9 @@ class Evaluator(object):
     def __init__(self, m='att'):
         self.instance_count = 0
         self.exact_match = 0
-        self.correct = {}
-        self.gold = {}
-        self.observed = {}
+        self.correct = Counter()
+        self.gold = Counter()
+        self.observed = Counter()
         self.mode = m
 
     def add_instance(self, g, o):
@@ -44,12 +45,12 @@ class Evaluator(object):
         for (k, v) in g.items():
             key = self._key(k, v)
             if o.get(k, 'NOT A VALUE') == v:
-                self.correct[key] = self.correct.get(key, 0) + 1  # for macro-micro
-            self.gold[key] = self.gold.get(key, 0) + 1  # mac-mic
+                self.correct[key] += 1  # for macro-micro
+            self.gold[key] += 1  # mac-mic
 
         for (k, v) in o.items():
             key = self._key(k, v)
-            self.observed[key] = self.observed.get(key, 0) + 1  # mac-mic
+            self.observed[key] += 1  # mac-mic
 
     def _key(self, k, v):
         if self.mode == 'att':
@@ -63,7 +64,7 @@ class Evaluator(object):
         :param att: get f1 for specific attribute (exact match)
         '''
         if att != None:
-            return f1(self.correct.get(att, 0), self.gold.get(att, 0), self.observed.get(att, 0))
+            return f1(self.correct[att], self.gold[att], self.observed[att])
         return f1(sum(self.correct.values()), sum(self.gold.values()), sum(self.observed.values()))
 
     def mac_f1(self, att = None):
@@ -76,7 +77,8 @@ class Evaluator(object):
             keys = all_keys
         else:
             keys = [k for k in all_keys if k[0] == att]
-        return average([f1(self.correct.get(k, 0), self.gold.get(k, 0), self.observed.get(k, 0)) for k in keys])
+        f1s = [f1(self.correct[k], self.gold[k], self.observed[k]) for k in keys]
+        return average(f1s)
 
     def acc(self):
         '''
