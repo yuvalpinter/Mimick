@@ -74,6 +74,7 @@ class LSTMTagger:
 
         # Char LSTM Parameters
         self.use_char_rnn = use_char_rnn
+        self.char_hidden_dim = hidden_dim
         if use_char_rnn:
             self.char_lookup = self.model.add_lookup_parameters((charset_size, char_embedding_dim), name="ce")
             self.char_bi_lstm = dy.BiRNNBuilder(1, char_embedding_dim, hidden_dim, self.model, dy.LSTMBuilder)
@@ -107,7 +108,11 @@ class LSTMTagger:
         # add character representation
         char_embs = [self.char_lookup[cid] for cid in char_ids]
         char_exprs = self.char_bi_lstm.transduce(char_embs)
-        return dy.concatenate([ wemb, char_exprs[-1] ])
+        #char_exprs[-1] contains the final forward hidden state,
+        #but the initial backward hidden state
+        forward = char_exprs[-1][:self.char_hidden_dim // 2]
+        backward = char_exprs[0][self.char_hidden_dim // 2:]
+        return dy.concatenate([wemb, forward, backward])
 
     def build_tagging_graph(self, sentence, word_chars):
         dy.renew_cg()
