@@ -193,30 +193,6 @@ class LSTMTagger:
         with open(file_name + "-atts", 'w') as attdict:
             attdict.write("\t".join(sorted(self.attributes)))
 
-    def old_save(self, file_name):
-        '''
-        Serialize model parameters for future loading and use.
-        Old version (pre dynet 2.0) loaded using initializer in scripts/test_model.py
-        '''
-        members_to_save = []
-        members_to_save.append(self.words_lookup)
-        if (self.use_char_rnn):
-            members_to_save.append(self.char_lookup)
-            members_to_save.append(self.char_bi_lstm)
-        members_to_save.append(self.word_bi_lstm)
-        members_to_save.extend(utils.sortvals(self.lstm_to_tags_params))
-        members_to_save.extend(utils.sortvals(self.lstm_to_tags_bias))
-        members_to_save.extend(utils.sortvals(self.mlp_out))
-        members_to_save.extend(utils.sortvals(self.mlp_out_bias))
-        self.model.save(file_name, members_to_save)
-
-        with open(file_name + "-atts", 'w') as attdict:
-            attdict.write("\t".join(sorted(self.attributes)))
-
-    @property
-    def model(self):
-        return self.model
-
 ### END OF CLASSES ###
 
 def get_att_prop(instances):
@@ -297,7 +273,8 @@ if __name__ == "__main__":
     # ===-----------------------------------------------------------------------===
     # Read in dataset
     # ===-----------------------------------------------------------------------===
-    dataset = pickle.load(open(options.dataset, "r"))
+    with open(options.dataset, 'rb') as f:
+        dataset = pickle.load(f)
     w2i = dataset["w2i"]
     t2is = dataset["t2is"]
     c2i = dataset["c2i"]
