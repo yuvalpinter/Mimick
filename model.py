@@ -182,14 +182,14 @@ class LSTMTagger:
 
     def disable_dropout(self):
         self.word_bi_lstm.disable_dropout()
-        
+
     def save(self, file_name):
         '''
         Serialize model parameters for future loading and use.
         TODO change reading in scripts/test_model.py
         '''
         self.model.save(file_name)
-        
+
         with open(file_name + "-atts", 'w') as attdict:
             attdict.write("\t".join(sorted(self.attributes)))
 
@@ -338,6 +338,9 @@ if __name__ == "__main__":
     logging.info("Number training instances: {}".format(len(training_instances)))
     logging.info("Number dev instances: {}".format(len(dev_instances)))
 
+    best_dev_pos = 0.0
+    old_best_name = None
+
     for epoch in range(int(options.num_epochs)):
         bar = progressbar.ProgressBar()
 
@@ -448,12 +451,13 @@ if __name__ == "__main__":
                 dev_writer.write(("\n"
                                  + "\n".join(["\t".join(z) for z in zip([i2w[w] for w in instance.sentence],
                                                                              gold_strings, obs_strings, oov_strings)])
-                                 + "\n").encode('utf8'))
+                                 + "\n"))
 
 
         dev_loss = dev_loss / len(d_instances)
 
         # log epoch results
+        dev_pos_accuracy = (dev_correct[POS_KEY] / dev_total[POS_KEY])
         logging.info("POS Dev Accuracy: {}".format(dev_correct[POS_KEY] / dev_total[POS_KEY]))
         logging.info("POS % OOV accuracy: {}".format((dev_oov_total[POS_KEY] - total_wrong_oov[POS_KEY]) / dev_oov_total[POS_KEY]))
         if total_wrong[POS_KEY] > 0:
@@ -473,6 +477,22 @@ if __name__ == "__main__":
             old_devout_file_name = "{}/devout_epoch-{:02d}.txt".format(options.log_dir, epoch)
             os.remove(old_devout_file_name)
 
+        # write best model by dev pos accuracy in addition to periodic writeouts
+        if dev_pos_accuracy > best_dev_pos:
+            logging.info("{:.4f} > {:.4f}, writing new best dev model".format(dev_pos_accuracy * 100,
+                    best_dev_pos * 100))
+            best_dev_pos = dev_pos_accuracy
+            #remove old best
+            if old_best_name:
+                os.remove(old_best_name)
+                os.remove(old_best_name + "-atts")
+
+            # if os.path.ex
+
+            new_model_file_name = "{}/best_model_epoch-{:02d}-{:.4f}.bin".format(options.log_dir, epoch + 1, dev_pos_accuracy)
+            model.save(new_model_file_name)
+            old_best_name = new_model_file_name
+
         # serialize model
         if not options.no_model:
             new_model_file_name = "{}/model_epoch-{:02d}.bin".format(options.log_dir, epoch + 1)
@@ -487,6 +507,7 @@ if __name__ == "__main__":
         # epoch loop ends
 
     # evaluate test data (once)
+    #TODO this should be done using the best dev model
     logging.info("\n")
     logging.info("Number test instances: {}".format(len(test_instances)))
     model.disable_dropout()
@@ -538,7 +559,7 @@ if __name__ == "__main__":
             test_writer.write(("\n"
                              + "\n".join(["\t".join(z) for z in zip([i2w[w] for w in instance.sentence],
                                                                          gold_strings, obs_strings, oov_strings)])
-                             + "\n").encode('utf8'))
+                             + "\n"))
 
 
     # log test results
