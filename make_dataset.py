@@ -12,7 +12,7 @@ c2i: Dict mapping characters to indices
 from _collections import defaultdict
 import codecs
 import argparse
-import cPickle
+import pickle
 import collections
 from utils import split_tagstring
 
@@ -59,7 +59,7 @@ def read_file(filename, w2i, t2is, c2i, options):
 
                 # pad tag lists to sentence end
                 slen = len(sentence)
-                for seq in tags.values():
+                for seq in list(tags.values()):
                     if len(seq) < slen:
                         seq.extend([0] * (slen - len(seq))) # 0 guaranteed below to represent NONE_TAG
 
@@ -92,7 +92,7 @@ def read_file(filename, w2i, t2is, c2i, options):
                 for c in word:
                     if c not in c2i:
                         c2i[c] = len(c2i)
-                for key, val in morphotags.items():
+                for key, val in list(morphotags.items()):
                     if key not in t2is:
                         t2is[key] = {NONE_TAG:0}
                     mt2i = t2is[key]
@@ -102,7 +102,7 @@ def read_file(filename, w2i, t2is, c2i, options):
                 # add data to sentence buffer
                 sentence.append(w2i[word])
                 tags[POS_KEY].append(t2is[POS_KEY][postag])
-                for k,v in morphotags.items():
+                for k,v in list(morphotags.items()):
                     mtags = tags[k]
                     # pad backwards to latest seen
                     missing_tags = idx - len(mtags) - 1
@@ -132,7 +132,7 @@ if __name__ == "__main__":
 
     # Add special tokens / tags / chars to dicts
     w2i[UNK_TAG] = len(w2i)
-    for t2i in t2is.values():
+    for t2i in list(t2is.values()):
         t2i[START_TAG] = len(t2i)
         t2i[END_TAG] = len(t2i)
     c2i[PADDING_CHAR] = len(c2i)
@@ -147,8 +147,8 @@ if __name__ == "__main__":
     output["c2i"] = c2i
 
     # write outputs to files
-    with open(options.output, "w") as outfile:
-        cPickle.dump(output, outfile)
+    with open(options.output, "wb") as outfile:
+        pickle.dump(output, outfile)
     with codecs.open(options.vocab_file, "w", "utf-8") as vocabfile:
-        for word in w2i.keys():
+        for word in list(w2i.keys()):
             vocabfile.write(word + "\n")
