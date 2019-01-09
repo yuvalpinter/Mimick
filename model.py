@@ -24,8 +24,6 @@ __author__ = "Yuval Pinter and Robert Guthrie, 2017"
 Instance = collections.namedtuple("Instance", ["sentence", "tags"])
 
 NONE_TAG = "<NONE>"
-START_TAG = "<START>"
-END_TAG = "<STOP>"
 POS_KEY = "POS"
 PADDING_CHAR = "<*>"
 

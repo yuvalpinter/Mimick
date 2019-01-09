@@ -22,8 +22,6 @@ Instance = collections.namedtuple("Instance", ["sentence", "tags"])
 
 UNK_TAG = "<UNK>"
 NONE_TAG = "<NONE>"
-START_TAG = "<START>"
-END_TAG = "<STOP>"
 PADDING_CHAR = "<*>"
 POS_KEY = "POS"
 
@@ -132,9 +130,6 @@ if __name__ == "__main__":
 
     # Add special tokens / tags / chars to dicts
     w2i[UNK_TAG] = len(w2i)
-    for t2i in list(t2is.values()):
-        t2i[START_TAG] = len(t2i)
-        t2i[END_TAG] = len(t2i)
     c2i[PADDING_CHAR] = len(c2i)
 
     # read data from UD files
