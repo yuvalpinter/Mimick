@@ -339,7 +339,7 @@ if __name__ == "__main__":
     best_dev_pos = 0.0
     old_best_name = None
 
-    for epoch in range(int(options.num_epochs)):
+    for epoch in range(options.num_epochs):
         bar = progressbar.ProgressBar()
 
         # set up epoch
