@@ -3,7 +3,7 @@
 An interactive tool for querying a Mimick model for nearest vectors of OOV words.
 '''
 import sys
-import cPickle as pickle
+import pickle as pickle
 import numpy as np
 import collections
 import argparse
@@ -72,4 +72,4 @@ if __name__ == "__main__":
         word_chars = [c2i[c] for c in next_word]
         pred_vec = mimick.predict_emb(word_chars).value()
         top_k = sorted([(iv, dist(iv_vec, pred_vec)) for iv,iv_vec in zip(voc_words, voc_vecs)], key=lambda x: x[1])[:opts.ktop]
-        print '\n'.join(['{}:\t{:.3f}'.format(near[0], 1.0 - near[1]) for near in top_k])
+        print('\n'.join(['{}:\t{:.3f}'.format(near[0], 1.0 - near[1]) for near in top_k]))

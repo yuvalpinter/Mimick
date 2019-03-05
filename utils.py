@@ -1,4 +1,4 @@
-import cPickle
+import pickle
 import itertools
 import codecs
 import numpy as np
@@ -30,9 +30,9 @@ def read_pretrained_embeddings(filename, w2i):
                 word = split[0]
                 vec = split[1:]
                 word_to_embed[word] = vec
-    embedding_dim = len(word_to_embed[word_to_embed.keys()[0]])
+    embedding_dim = len(word_to_embed[list(word_to_embed.keys())[0]])
     out = np.random.uniform(-0.8, 0.8, (len(w2i), embedding_dim))
-    for word, embed in word_to_embed.items():
+    for word, embed in list(word_to_embed.items()):
         embed_arr = np.array(embed)
         if np.linalg.norm(embed_arr) < 15.0 and word in w2i:
             # Theres a reason for this if condition.  Some tokens in ptb
@@ -51,15 +51,15 @@ def read_text_embs(files):
                 split = line.split()
                 if len(split) > 2:
                     word_embs[split[0]] = np.array([float(s) for s in split[1:]])
-    return zip(*word_embs.iteritems())
+    return list(zip(*iter(word_embs.items())))
 
 def read_pickle_embs(files):
     word_embs = dict()
     for filename in files:
-        print filename
-        words, embs = cPickle.load(open(filename, "r"))
-        word_embs.update(zip(words, embs))
-    return zip(*word_embs.iteritems())
+        print(filename)
+        words, embs = pickle.load(open(filename, "r"))
+        word_embs.update(list(zip(words, embs)))
+    return list(zip(*iter(word_embs.items())))
 
 
 def split_tagstring(s, uni_key=False, has_pos=False):
@@ -84,14 +84,14 @@ def split_tagstring(s, uni_key=False, has_pos=False):
 
 
 def morphotag_strings(i2ts, tag_mapping, pos_separate_col=True):
-    senlen = len(tag_mapping.values()[0])
+    senlen = len(list(tag_mapping.values())[0])
     key_value_strs = []
 
     # j iterates along sentence, as we're building the string representations
     # in the opposite orientation as the mapping
-    for j in xrange(senlen):
+    for j in range(senlen):
         place_strs = []
-        for att, seq in tag_mapping.items():
+        for att, seq in list(tag_mapping.items()):
             val = i2ts[att][seq[j]]
             if pos_separate_col and att == POS_KEY:
                 pos_str = val

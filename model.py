@@ -1,16 +1,16 @@
 '''
 Main application script for tagging parts-of-speech and morphosyntactic tags. Run with --help for command line arguments.
 '''
-from __future__ import division
+
 from collections import Counter
 from _collections import defaultdict
 from evaluate_morphotags import Evaluator
-from sys import maxint
+from sys import maxsize
 
 import collections
 import argparse
 import random
-import cPickle
+import pickle
 import logging
 import progressbar
 import os
@@ -24,8 +24,6 @@ __author__ = "Yuval Pinter and Robert Guthrie, 2017"
 Instance = collections.namedtuple("Instance", ["sentence", "tags"])
 
 NONE_TAG = "<NONE>"
-START_TAG = "<START>"
-END_TAG = "<STOP>"
 POS_KEY = "POS"
 PADDING_CHAR = "<*>"
 
@@ -56,10 +54,10 @@ class LSTMTagger:
         '''
         self.model = dy.Model()
         self.tagset_sizes = tagset_sizes
-        self.attributes = tagset_sizes.keys()
+        self.attributes = list(tagset_sizes.keys())
         self.we_update = not no_we_update
         if att_props is not None:
-            self.att_props = defaultdict(float, {att:(1.0-p) for att,p in att_props.iteritems()})
+            self.att_props = defaultdict(float, {att:(1.0-p) for att,p in att_props.items()})
         else:
             self.att_props = None
 
@@ -74,6 +72,7 @@ class LSTMTagger:
 
         # Char LSTM Parameters
         self.use_char_rnn = use_char_rnn
+        self.char_hidden_dim = hidden_dim
         if use_char_rnn:
             self.char_lookup = self.model.add_lookup_parameters((charset_size, char_embedding_dim), name="ce")
             self.char_bi_lstm = dy.BiRNNBuilder(1, char_embedding_dim, hidden_dim, self.model, dy.LSTMBuilder)
@@ -90,7 +89,7 @@ class LSTMTagger:
         self.lstm_to_tags_bias = {}
         self.mlp_out = {}
         self.mlp_out_bias = {}
-        for att, set_size in tagset_sizes.items():
+        for att, set_size in list(tagset_sizes.items()):
             self.lstm_to_tags_params[att] = self.model.add_parameters((set_size, hidden_dim), name=att+"H")
             self.lstm_to_tags_bias[att] = self.model.add_parameters(set_size, name=att+"Hb")
             self.mlp_out[att] = self.model.add_parameters((set_size, set_size), name=att+"O")
@@ -107,7 +106,11 @@ class LSTMTagger:
         # add character representation
         char_embs = [self.char_lookup[cid] for cid in char_ids]
         char_exprs = self.char_bi_lstm.transduce(char_embs)
-        return dy.concatenate([ wemb, char_exprs[-1] ])
+        #char_exprs[-1] contains the final forward hidden state,
+        #but the initial backward hidden state
+        forward = char_exprs[-1][:self.char_hidden_dim // 2]
+        backward = char_exprs[0][self.char_hidden_dim // 2:]
+        return dy.concatenate([wemb, forward, backward])
 
     def build_tagging_graph(self, sentence, word_chars):
         dy.renew_cg()
@@ -143,14 +146,14 @@ class LSTMTagger:
         '''
         observations_set = self.build_tagging_graph(sentence, word_chars)
         errors = {}
-        for att, tags in tags_set.iteritems():
+        for att, tags in tags_set.items():
             err = []
             for obs, tag in zip(observations_set[att], tags):
                 err_t = dy.pickneglogsoftmax(obs, tag)
                 err.append(err_t)
             errors[att] = dy.esum(err)
         if self.att_props is not None:
-            for att, err in errors.iteritems():
+            for att, err in errors.items():
                 prop_vec = dy.inputVector([self.att_props[att]] * err.dim()[0])
                 err = dy.cmult(err, prop_vec)
         return errors
@@ -162,7 +165,7 @@ class LSTMTagger:
         '''
         observations_set = self.build_tagging_graph(sentence, word_chars)
         tag_seqs = {}
-        for att, observations in observations_set.iteritems():
+        for att, observations in observations_set.items():
             observations = [ dy.softmax(obs) for obs in observations ]
             probs = [ obs.npvalue() for obs in observations ]
             tag_seq = []
@@ -177,40 +180,16 @@ class LSTMTagger:
 
     def disable_dropout(self):
         self.word_bi_lstm.disable_dropout()
-        
+
     def save(self, file_name):
         '''
         Serialize model parameters for future loading and use.
         TODO change reading in scripts/test_model.py
         '''
         self.model.save(file_name)
-        
-        with open(file_name + "-atts", 'w') as attdict:
-            attdict.write("\t".join(sorted(self.attributes)))
-
-    def old_save(self, file_name):
-        '''
-        Serialize model parameters for future loading and use.
-        Old version (pre dynet 2.0) loaded using initializer in scripts/test_model.py
-        '''
-        members_to_save = []
-        members_to_save.append(self.words_lookup)
-        if (self.use_char_rnn):
-            members_to_save.append(self.char_lookup)
-            members_to_save.append(self.char_bi_lstm)
-        members_to_save.append(self.word_bi_lstm)
-        members_to_save.extend(utils.sortvals(self.lstm_to_tags_params))
-        members_to_save.extend(utils.sortvals(self.lstm_to_tags_bias))
-        members_to_save.extend(utils.sortvals(self.mlp_out))
-        members_to_save.extend(utils.sortvals(self.mlp_out_bias))
-        self.model.save(file_name, members_to_save)
 
         with open(file_name + "-atts", 'w') as attdict:
             attdict.write("\t".join(sorted(self.attributes)))
-
-    @property
-    def model(self):
-        return self.model
 
 ### END OF CLASSES ###
 
@@ -220,7 +199,7 @@ def get_att_prop(instances):
     att_counts = Counter()
     for instance in instances:
         total_tokens += len(instance.sentence)
-        for att, tags in instance.tags.items():
+        for att, tags in list(instance.tags.items()):
             t2i = t2is[att]
             att_counts[att] += len([t for t in tags if t != t2i.get(NONE_TAG, -1)])
     return {att:(1.0 - (att_counts[att] / total_tokens)) for att in att_counts}
@@ -240,8 +219,8 @@ if __name__ == "__main__":
     parser.add_argument("--num-epochs", default=20, dest="num_epochs", type=int, help="Number of full passes through training set (default - 20)")
     parser.add_argument("--num-lstm-layers", default=2, dest="lstm_layers", type=int, help="Number of LSTM layers (default - 2)")
     parser.add_argument("--hidden-dim", default=128, dest="hidden_dim", type=int, help="Size of LSTM hidden layers (default - 128)")
-    parser.add_argument("--training-sentence-size", default=maxint, dest="training_sentence_size", type=int, help="Instance count of training set (default - unlimited)")
-    parser.add_argument("--token-size", default=maxint, dest="token_size", type=int, help="Token count of training set (default - unlimited)")
+    parser.add_argument("--training-sentence-size", default=maxsize, dest="training_sentence_size", type=int, help="Instance count of training set (default - unlimited)")
+    parser.add_argument("--token-size", default=maxsize, dest="token_size", type=int, help="Token count of training set (default - unlimited)")
     parser.add_argument("--learning-rate", default=0.01, dest="learning_rate", type=float, help="Initial learning rate (default - 0.01)")
     parser.add_argument("--dropout", default=-1, dest="dropout", type=float, help="Amount of dropout to apply to LSTM part of graph (default - off)")
     parser.add_argument("--no-we-update", dest="no_we_update", action="store_true", help="Word Embeddings aren't updated")
@@ -287,18 +266,19 @@ if __name__ == "__main__":
                options.training_sentence_size, options.token_size, options.learning_rate, options.dropout, options.loss_prop))
 
     if options.debug:
-        print "DEBUG MODE"
+        print("DEBUG MODE")
 
     # ===-----------------------------------------------------------------------===
     # Read in dataset
     # ===-----------------------------------------------------------------------===
-    dataset = cPickle.load(open(options.dataset, "r"))
+    with open(options.dataset, 'rb') as f:
+        dataset = pickle.load(f)
     w2i = dataset["w2i"]
     t2is = dataset["t2is"]
     c2i = dataset["c2i"]
-    i2w = { i: w for w, i in w2i.items() } # Inverse mapping
-    i2ts = { att: {i: t for t, i in t2i.items()} for att, t2i in t2is.items() }
-    i2c = { i: c for c, i in c2i.items() }
+    i2w = { i: w for w, i in list(w2i.items()) } # Inverse mapping
+    i2ts = { att: {i: t for t, i in list(t2i.items())} for att, t2i in list(t2is.items()) }
+    i2c = { i: c for c, i in list(c2i.items()) }
 
     training_instances = dataset["training_instances"]
     training_vocab = dataset["training_vocab"]
@@ -331,7 +311,7 @@ if __name__ == "__main__":
     else:
         word_embeddings = None
 
-    tag_set_sizes = { att: len(t2i) for att, t2i in t2is.items() }
+    tag_set_sizes = { att: len(t2i) for att, t2i in list(t2is.items()) }
 
     if options.loss_prop:
         att_props = get_att_prop(training_instances)
@@ -356,7 +336,10 @@ if __name__ == "__main__":
     logging.info("Number training instances: {}".format(len(training_instances)))
     logging.info("Number dev instances: {}".format(len(dev_instances)))
 
-    for epoch in xrange(int(options.num_epochs)):
+    best_dev_pos = 0.0
+    old_best_name = None
+
+    for epoch in range(options.num_epochs):
         bar = progressbar.ProgressBar()
 
         # set up epoch
@@ -387,7 +370,7 @@ if __name__ == "__main__":
 
             # calculate all losses for sentence
             loss_exprs = model.loss(instance.sentence, word_chars, gold_tags)
-            loss_expr = dy.esum(loss_exprs.values())
+            loss_expr = dy.esum(list(loss_exprs.values()))
             loss = loss_expr.scalar_value()
 
             # bail if loss is NaN
@@ -404,7 +387,7 @@ if __name__ == "__main__":
         logging.info("\n")
         logging.info("Epoch {} complete".format(epoch + 1))
         # here used to be a learning rate update, no longer supported in dynet 2.0
-        print trainer.status()
+        print(trainer.status())
 
         train_loss = train_loss / len(train_instances)
 
@@ -431,14 +414,14 @@ if __name__ == "__main__":
                     if att not in instance.tags:
                         gold_tags[att] = [t2is[att][NONE_TAG]] * len(instance.sentence)
                 losses = model.loss(instance.sentence, word_chars, gold_tags)
-                total_loss = sum([l.scalar_value() for l in losses.values()])
+                total_loss = sum([l.scalar_value() for l in list(losses.values())])
                 out_tags_set = model.tag_sentence(instance.sentence, word_chars)
 
                 gold_strings = utils.morphotag_strings(i2ts, gold_tags)
                 obs_strings = utils.morphotag_strings(i2ts, out_tags_set)
                 for g, o in zip(gold_strings, obs_strings):
                     f1_eval.add_instance(utils.split_tagstring(g, has_pos=True), utils.split_tagstring(o, has_pos=True))
-                for att, tags in gold_tags.items():
+                for att, tags in list(gold_tags.items()):
                     out_tags = out_tags_set[att]
                     correct_sent = True
 
@@ -466,17 +449,18 @@ if __name__ == "__main__":
                 dev_writer.write(("\n"
                                  + "\n".join(["\t".join(z) for z in zip([i2w[w] for w in instance.sentence],
                                                                              gold_strings, obs_strings, oov_strings)])
-                                 + "\n").encode('utf8'))
+                                 + "\n"))
 
 
         dev_loss = dev_loss / len(d_instances)
 
         # log epoch results
+        dev_pos_accuracy = (dev_correct[POS_KEY] / dev_total[POS_KEY])
         logging.info("POS Dev Accuracy: {}".format(dev_correct[POS_KEY] / dev_total[POS_KEY]))
         logging.info("POS % OOV accuracy: {}".format((dev_oov_total[POS_KEY] - total_wrong_oov[POS_KEY]) / dev_oov_total[POS_KEY]))
         if total_wrong[POS_KEY] > 0:
             logging.info("POS % Wrong that are OOV: {}".format(total_wrong_oov[POS_KEY] / total_wrong[POS_KEY]))
-        for attr in t2is.keys():
+        for attr in list(t2is.keys()):
             if attr != POS_KEY:
                 logging.info("{} F1: {}".format(attr, f1_eval.mic_f1(att = attr)))
         logging.info("Total attribute F1s: {} micro, {} macro, POS included = {}".format(f1_eval.mic_f1(), f1_eval.mac_f1(), False))
@@ -490,6 +474,22 @@ if __name__ == "__main__":
         if epoch > 1 and epoch % 10 != 0: # leave outputs from epochs 1,10,20, etc.
             old_devout_file_name = "{}/devout_epoch-{:02d}.txt".format(options.log_dir, epoch)
             os.remove(old_devout_file_name)
+
+        # write best model by dev pos accuracy in addition to periodic writeouts
+        if dev_pos_accuracy > best_dev_pos:
+            logging.info("{:.4f} > {:.4f}, writing new best dev model".format(dev_pos_accuracy * 100,
+                    best_dev_pos * 100))
+            best_dev_pos = dev_pos_accuracy
+            #remove old best
+            if old_best_name:
+                os.remove(old_best_name)
+                os.remove(old_best_name + "-atts")
+
+            # if os.path.ex
+
+            new_model_file_name = "{}/best_model_epoch-{:02d}-{:.4f}.bin".format(options.log_dir, epoch + 1, dev_pos_accuracy)
+            model.save(new_model_file_name)
+            old_best_name = new_model_file_name
 
         # serialize model
         if not options.no_model:
@@ -505,6 +505,7 @@ if __name__ == "__main__":
         # epoch loop ends
 
     # evaluate test data (once)
+    #TODO this should be done using the best dev model
     logging.info("\n")
     logging.info("Number test instances: {}".format(len(test_instances)))
     model.disable_dropout()
@@ -533,7 +534,7 @@ if __name__ == "__main__":
             obs_strings = utils.morphotag_strings(i2ts, out_tags_set)
             for g, o in zip(gold_strings, obs_strings):
                 f1_eval.add_instance(utils.split_tagstring(g, has_pos=True), utils.split_tagstring(o, has_pos=True))
-            for att, tags in gold_tags.items():
+            for att, tags in list(gold_tags.items()):
                 out_tags = out_tags_set[att]
 
                 oov_strings = []
@@ -556,7 +557,7 @@ if __name__ == "__main__":
             test_writer.write(("\n"
                              + "\n".join(["\t".join(z) for z in zip([i2w[w] for w in instance.sentence],
                                                                          gold_strings, obs_strings, oov_strings)])
-                             + "\n").encode('utf8'))
+                             + "\n"))
 
 
     # log test results
@@ -564,7 +565,7 @@ if __name__ == "__main__":
     logging.info("POS % Test OOV accuracy: {}".format((test_oov_total[POS_KEY] - total_wrong_oov[POS_KEY]) / test_oov_total[POS_KEY]))
     if total_wrong[POS_KEY] > 0:
         logging.info("POS % Test Wrong that are OOV: {}".format(total_wrong_oov[POS_KEY] / total_wrong[POS_KEY]))
-    for attr in t2is.keys():
+    for attr in list(t2is.keys()):
         if attr != POS_KEY:
             logging.info("{} F1: {}".format(attr, f1_eval.mic_f1(att = attr)))
     logging.info("Total attribute F1s: {} micro, {} macro, POS included = {}".format(f1_eval.mic_f1(), f1_eval.mac_f1(), False))

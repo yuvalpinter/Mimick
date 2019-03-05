@@ -1,5 +1,5 @@
 # REPRESENTATION
-POLYGLOT_UNK = unicode("<UNK>")
+POLYGLOT_UNK = str("<UNK>")
 PADDING_CHAR = "<*>"
 
 # MODEL PARAMS
