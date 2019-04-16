@@ -300,7 +300,7 @@ if __name__ == "__main__":
     root_logger.info("Hidden dimension: {}".format(options.hidden_dim))
 
     # Load training set
-    dataset = pickle.load(open(options.dataset, "r"))
+    dataset = pickle.load(open(options.dataset, "rb"))
     c2i = dataset["c2i"]
     i2c = { i: c for c, i in list(c2i.items()) } # inverse map
     training_instances = dataset["training_instances"]

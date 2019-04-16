@@ -14,9 +14,7 @@ import pickle
 import collections
 import numpy as np
 
-from util import charseq
-
-from utils import read_text_embs, read_pickle_embs
+from util import charseq, read_text_embs, read_pickle_embs
 
 __author__ = "Yuval Pinter, 2017"
 
@@ -87,5 +85,5 @@ if __name__ == "__main__":
     output["test_instances"] = test_instances
 
     # write output
-    with open(options.output, "w") as outfile:
+    with open(options.output, "wb") as outfile:
         pickle.dump(output, outfile)
