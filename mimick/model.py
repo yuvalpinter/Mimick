@@ -1,13 +1,13 @@
 '''
 Script for training Mimick model to predict OOV word embeddings based on pre-trained embeddings dictionary.
 '''
-from __future__ import division
+
 from collections import Counter
 
 import collections
 import argparse
 import random
-import cPickle
+import pickle
 import logging
 import progressbar
 import os
@@ -44,27 +44,27 @@ class CNNMimick:
         self.hidden_dim = hidden_dim
         self.window_width = window_width
         self.model = dy.Model()
-        
+
         ### TODO allow more layers (create list of length num_conv_layers,
         ### don't forget relu and max-pooling after each in predict_emb)
         if num_conv_layers > 1:
-            print "Warning: unsupported value passed for number of CNN layers: {}. Using 1 instead."\
-                    .format(num_conv_layers)
-        
+            print("Warning: unsupported value passed for number of CNN layers: {}. Using 1 instead."\
+                    .format(num_conv_layers))
+
         self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim), name="ce")
         self.conv = self.model.add_parameters((1, window_width, char_dim, hidden_dim), name="conv")
         self.conv_bias = self.model.add_parameters((hidden_dim), name="convb")
-        
+
         self.cnn_to_rep_params = self.model.add_parameters((word_embedding_dim, hidden_dim * pooling_maxk), name="H")
         self.cnn_to_rep_bias = self.model.add_parameters(word_embedding_dim, name="Hb")
         self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim), name="O")
         self.mlp_out_bias = self.model.add_parameters(word_embedding_dim, name="Ob")
-        
+
         if file is not None:
             ### NOTE - dynet 2.0 only supports explicit loading into params, so
             ### dimensionalities all need to be specified in init
             self.model.populate(file)
- 
+
     def predict_emb(self, chars):
         dy.renew_cg()
 
@@ -75,7 +75,7 @@ class CNNMimick:
         Hb = dy.parameter(self.cnn_to_rep_bias)
         O = dy.parameter(self.mlp_out)
         Ob = dy.parameter(self.mlp_out_bias)
-        
+
         # padding
         pad_char = self.c2i[PADDING_CHAR]
         padding_size = self.window_width // 2 # TODO also consider w_stride?
@@ -83,22 +83,22 @@ class CNNMimick:
         if len(chars) < self.pooling_maxk:
             # allow k-max pooling layer output to transform to affine
             char_ids.extend([pad_char] * (self.pooling_maxk - len(chars)))
-        
+
         embeddings = dy.concatenate_cols([self.char_lookup[cid] for cid in char_ids])
         reshaped_embeddings = dy.reshape(dy.transpose(embeddings), (1, len(char_ids), self.char_dim))
-        
+
         # not using is_valid=False due to maxk-pooling-induced extra padding
         conv_out = dy.conv2d_bias(reshaped_embeddings, conv_param, conv_param_bias, self.stride, is_valid=True)
-        
+
         relu_out = dy.rectify(conv_out)
-        
+
         ### pooling when max_k can only be 1, not sure what other differences may be
         #poolingk = [1, len(chars)]
         #pooling_out = dy.maxpooling2d(relu_out, poolingk, self.stride, is_valid=True)
         #pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim,))
-        
+
         ### another possible way for pooling is just max_dim(relu_out, d=1)
-        
+
         pooling_out = dy.kmax_pooling(relu_out, self.pooling_maxk, d=1) # d = what dimension to max over
         pooling_out_flat = dy.reshape(pooling_out, (self.hidden_dim * self.pooling_maxk,))
 
@@ -118,12 +118,12 @@ class CNNMimick:
     def save(self, file_name):
         self.model.save(file_name)
         # character mapping saved separately
-        cPickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
+        pickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
 
     @property
     def model(self):
         return self.model
-        
+
 ######################################
 
 class LSTMMimick:
@@ -133,7 +133,7 @@ class LSTMMimick:
                 word_embedding_dim=DEFAULT_WORD_DIM, file=None):
         self.c2i = c2i
         self.model = dy.Model()
-        
+
         # Char LSTM Parameters
         self.char_lookup = self.model.add_lookup_parameters((len(c2i), char_dim), name="ce")
         self.char_fwd_lstm = dy.LSTMBuilder(num_lstm_layers, char_dim, hidden_dim, self.model)
@@ -144,7 +144,7 @@ class LSTMMimick:
         self.lstm_to_rep_bias = self.model.add_parameters(word_embedding_dim, name="Hb")
         self.mlp_out = self.model.add_parameters((word_embedding_dim, word_embedding_dim), name="O")
         self.mlp_out_bias = self.model.add_parameters(word_embedding_dim, name="Ob")
-        
+
         if file is not None:
             # read from saved file; see old_load() for dynet 1.0 format
             ### NOTE - dynet 2.0 only supports explicit loading into params, so
@@ -188,8 +188,8 @@ class LSTMMimick:
         self.model.save(file_name)
 
         # character mapping saved separately
-        cPickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
-        
+        pickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
+
     def old_save(self, file_name):
         members_to_save = []
         members_to_save.append(self.char_lookup)
@@ -202,18 +202,18 @@ class LSTMMimick:
         self.model.save(file_name, members_to_save)
 
         # character mapping saved separately
-        cPickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
-            
+        pickle.dump(self.c2i, open(file_name[:-4] + '.c2i', 'w'))
+
     def old_load():
         # for this to load in __init__() there's no param init necessary
         model_members = iter(self.model.load(file))
-        self.char_lookup = model_members.next()
-        self.char_fwd_lstm = model_members.next()
-        self.char_bwd_lstm = model_members.next()
-        self.lstm_to_rep_params = model_members.next()
-        self.lstm_to_rep_bias = model_members.next()
-        self.mlp_out = model_members.next()
-        self.mlp_out_bias = model_members.next()
+        self.char_lookup = next(model_members)
+        self.char_fwd_lstm = next(model_members)
+        self.char_bwd_lstm = next(model_members)
+        self.lstm_to_rep_params = next(model_members)
+        self.lstm_to_rep_bias = next(model_members)
+        self.mlp_out = next(model_members)
+        self.mlp_out_bias = next(model_members)
 
     @property
     def model(self):
@@ -287,7 +287,7 @@ if __name__ == "__main__":
         root_logger.info("All output vectors to be written from Mimick inference.")
     if options.early_stopping:
         root_logger.info("Implemented early stopping, epoch count = {}".format(EARLY_STOPPING_CONST))
-    
+
     root_logger.info("\nModel Architecture: {}".format('CNN' if options.cnn else 'LSTM'))
     if options.cnn:
         root_logger.info("Layers: {}".format(options.num_conv_layers))
@@ -298,11 +298,11 @@ if __name__ == "__main__":
         root_logger.info("Layers: {}".format(options.num_lstm_layers))
     root_logger.info("Character embedding dimension: {}".format(options.char_dim))
     root_logger.info("Hidden dimension: {}".format(options.hidden_dim))
-    
+
     # Load training set
-    dataset = cPickle.load(open(options.dataset, "r"))
+    dataset = pickle.load(open(options.dataset, "r"))
     c2i = dataset["c2i"]
-    i2c = { i: c for c, i in c2i.items() } # inverse map
+    i2c = { i: c for c, i in list(c2i.items()) } # inverse map
     training_instances = dataset["training_instances"]
     test_instances = dataset["test_instances"]
     populate_test_insts_from_vocab = len(test_instances) == 0
@@ -320,7 +320,7 @@ if __name__ == "__main__":
                 vocab_words[vw] = np.zeros(emb_dim)
                 if populate_test_insts_from_vocab and vw not in train_words:
                     test_instances.append(Instance(charseq(vw, c2i), np.zeros(emb_dim)))
-    
+
     if populate_test_insts_from_vocab:
         # need to update i2c if saw new characters
         i2c = { i: c for c, i in c2i.items() }
@@ -330,7 +330,7 @@ if __name__ == "__main__":
     else:
         model = CNNMimick(c2i, options.num_conv_layers, options.char_dim, options.hidden_dim,\
                 options.window_width, options.pooling_maxk, options.w_stride, emb_dim)
-    
+
     trainer = dy.MomentumSGDTrainer(model.model, options.learning_rate, 0.9)
     root_logger.info("Training Algorithm: {}".format(type(trainer)))
 
@@ -356,7 +356,7 @@ if __name__ == "__main__":
     dev_losses = []
 
     # Shuffle set, divide into cross-folds each epoch
-    for epoch in xrange(epcs):
+    for epoch in range(epcs):
         bar = progressbar.ProgressBar()
 
         train_loss = 0.0
@@ -384,9 +384,8 @@ if __name__ == "__main__":
 
         root_logger.info("\n")
         root_logger.info("Epoch {} complete".format(epoch + 1))
-        ### TODO solve learning rate update issue
-        #trainer.learning_rate /= (1.0 - rate_decay)
-        print trainer.status()
+        # here used to be a learning rate update, no longer supported in dynet 2.0
+        print(trainer.status())
 
         # Evaluate dev data
         model.disable_dropout()
@@ -400,17 +399,17 @@ if __name__ == "__main__":
 
         root_logger.info("Train Loss: {}".format(train_loss))
         root_logger.info("Dev Loss: {}".format(dev_loss))
-        
+
         dev_losses.append(dev_loss)
         if options.early_stopping and dev_loss == min(dev_losses):
             # save model
             root_logger.info("Saving epoch model")
             model.save(options.model_out)
-        
+
         if epoch >= 5 and options.early_stopping and np.argmin(dev_losses[-EARLY_STOPPING_CONST:]) == 0:
             root_logger.info("Early stopping after {} epochs. Reloading best model".format(epoch + 1))
             model.model.populate(options.model_out)
-            
+
             # recompute dev loss to make sure
             dev_loss = 0.0
             bar = progressbar.ProgressBar()
@@ -424,7 +423,7 @@ if __name__ == "__main__":
     if not options.early_stopping:
         # save model (with e-s it's already saved)
         model.save(options.model_out)
-    
+
     # populate vocab_words and compute dataset statistics
     pretrained_vec_norms = 0.0
     inferred_vec_norms = 0.0
@@ -440,10 +439,10 @@ if __name__ == "__main__":
             else:
                 # populate using vocab embeddings
                 vocab_words[word] = instance.word_emb
-    
+
     root_logger.info("\n")
     root_logger.info("Average norm for pre-trained in vocab: {}".format(pretrained_vec_norms / len(vocab_words)))
-    
+
     # Infer for test set
     showcase_size = 5
     top_to_show = 10
@@ -471,7 +470,7 @@ if __name__ == "__main__":
         for w in showcase:
             vec = vocab_words[w]
             top_k = [(wordify(instance, i2c),d) for instance,d in sorted([(inst, dist(inst, vec)) for inst in training_instances], key=lambda x: x[1])[:top_to_show]]
-            print w, [(i,d) for i,d in top_k]
+            print(w, [(i,d) for i,d in top_k])
             similar_words[w] = top_k
 
 
@@ -479,7 +478,7 @@ if __name__ == "__main__":
     if options.output is not None:
         with codecs.open(options.output, "w", "utf-8") as writer:
             writer.write("{} {}\n".format(len(vocab_words), emb_dim))
-            for vw, emb in vocab_words.iteritems():
+            for vw, emb in vocab_words.items():
                 writer.write(vw + " ")
                 for i in emb:
                     writer.write("{:.6f} ".format(i))

@@ -2,7 +2,6 @@
 Follows <gold,observed> pairs, each <attribute, value> and produces macro or micro f1 scores,
 either by attribute alone (pooled over values) or by attribute-value combination.
 '''
-from __future__ import division
 from numpy import average
 
 __author__ = "Yuval Pinter, November 2016"
@@ -41,13 +40,13 @@ class Evaluator(object):
                 self.exact_match = self.exact_match + 1
             return
 
-        for (k, v) in g.items():
+        for (k, v) in list(g.items()):
             key = self._key(k, v)
             if o.get(k, 'NOT A VALUE') == v:
                 self.correct[key] = self.correct.get(key, 0) + 1  # for macro-micro
             self.gold[key] = self.gold.get(key, 0) + 1  # mac-mic
 
-        for (k, v) in o.items():
+        for (k, v) in list(o.items()):
             key = self._key(k, v)
             self.observed[key] = self.observed.get(key, 0) + 1  # mac-mic
 
@@ -71,7 +70,7 @@ class Evaluator(object):
         Macro F1
         :param att: only relevant in att_val mode, otherwise fails (use mic_f1)
         '''
-        all_keys = set().union(self.gold.keys(), self.observed.keys())
+        all_keys = set().union(list(self.gold.keys()), list(self.observed.keys()))
         if att == None:
             keys = all_keys
         else:

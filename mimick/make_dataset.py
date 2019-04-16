@@ -6,11 +6,11 @@ Inputs:
     pre-trained embeddings will be output by the character model
     (only important for sanity statistics following model training)
 '''
-from __future__ import division
+
 from _collections import defaultdict
 import codecs
 import argparse
-import cPickle
+import pickle
 import collections
 import numpy as np
 
@@ -20,8 +20,8 @@ from utils import read_text_embs, read_pickle_embs
 
 __author__ = "Yuval Pinter, 2017"
 
-POLYGLOT_UNK = unicode("<UNK>")
-W2V_UNK = unicode("UNK")
+POLYGLOT_UNK = str("<UNK>")
+W2V_UNK = str("UNK")
 PADDING_CHAR = "<*>"
 
 Instance = collections.namedtuple("Instance", ["chars", "word_emb"])
@@ -64,8 +64,8 @@ if __name__ == "__main__":
             in_vocab += 1
         training_instances.append(Instance(charseq(word, c2i), emb))
     training_char_count = len(c2i)
-    print "Total in Embeddings vocabulary:", len(words)
-    print "Training set character count: ", training_char_count
+    print("Total in Embeddings vocabulary:", len(words))
+    print("Training set character count: ", training_char_count)
 
     # Test: Will be doing inference on these words using mimick
     if len(vocab) > 0:
@@ -73,10 +73,10 @@ if __name__ == "__main__":
         for v in vocab:
             if v not in words:
                 test_instances.append(Instance(charseq(v, c2i), np.array([0.0] * dim)))
-        print "Total Number of output words:", total
-        print "Total in Training Vocabulary:", in_vocab
-        print "Percentage in-vocab:", in_vocab / total
-        print "Total character count: ", len(c2i)
+        print("Total Number of output words:", total)
+        print("Total in Training Vocabulary:", in_vocab)
+        print("Percentage in-vocab:", in_vocab / total)
+        print("Total character count: ", len(c2i))
 
     c2i[PADDING_CHAR] = len(c2i)
 
@@ -88,4 +88,4 @@ if __name__ == "__main__":
 
     # write output
     with open(options.output, "w") as outfile:
-        cPickle.dump(output, outfile)
+        pickle.dump(output, outfile)
