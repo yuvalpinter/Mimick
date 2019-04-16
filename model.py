@@ -223,6 +223,7 @@ if __name__ == "__main__":
     parser.add_argument("--token-size", default=maxsize, dest="token_size", type=int, help="Token count of training set (default - unlimited)")
     parser.add_argument("--learning-rate", default=0.01, dest="learning_rate", type=float, help="Initial learning rate (default - 0.01)")
     parser.add_argument("--dropout", default=-1, dest="dropout", type=float, help="Amount of dropout to apply to LSTM part of graph (default - off)")
+    parser.add_argument("--rate-decay", default=0.05, dest="rate_decay", type=float, help="Learning rate decay per epoch (default - 0.05, 0.0 means no decay)")
     parser.add_argument("--no-we-update", dest="no_we_update", action="store_true", help="Word Embeddings aren't updated")
     parser.add_argument("--loss-prop", dest="loss_prop", action="store_true", help="Proportional loss magnitudes")
     parser.add_argument("--use-char-rnn", dest="use_char_rnn", action="store_true", help="Use character RNN (default - off)")
@@ -387,7 +388,7 @@ if __name__ == "__main__":
         logging.info("\n")
         logging.info("Epoch {} complete".format(epoch + 1))
         
-        # here used to be a learning rate update, no longer supported in dynet 2.0
+        trainer.learning_rate *= (1.0 - options.rate_decay)
         print(trainer.status())
 
         train_loss = train_loss / len(train_instances)
